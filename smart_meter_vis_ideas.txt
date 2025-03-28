@@ -1,0 +1,11 @@
+ideas for visualisation
+
+Compare weekdays (totals and average)
+Compare months (totals and average, watch out for fair dataset for totals)\
+Include temperature graph
+Calculate correlation temp//consumption
+
+So I want to do a project in a jupyter notebook and then later rewrite as a regular python program. in the final iteration i want the end user to call it in a terminal. the input is a CSV file that shows daily usage data of an electricity smart meter. One column shows the date, the other shows the amount used that day. i want the CSV file to be read into pandas a pandas Series and then replace the index with the date. Then I'll get daily average temperatures for the same period and create another series with that. I then want to use matplotlib with python to create a graph that shows a graph for the temperature and for the electricity used.
+
+I first want to run it from the command line. Then document it.
+Then make a CLI tool for it.
