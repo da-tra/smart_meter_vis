@@ -175,4 +175,4 @@ cython_debug/
 .ruff_cache/
 
 # PyPI configuration file
-.pypirc
+.pypircTAGESWERTE-20220325-bis-20250324.csv
