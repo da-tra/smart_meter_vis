@@ -2,6 +2,8 @@ import sqlite3
 from datetime import datetime
 import csv
 
+# TODO determine start date somehow, eliminate lines without data
+# TODO
 # create table
 conn = sqlite3.connect("usage_data.db")
 cursor = conn.cursor()

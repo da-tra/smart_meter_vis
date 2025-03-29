@@ -23,6 +23,11 @@ cursor = conn.cursor()
 # Attach the second database (usage data)
 cursor.execute("ATTACH DATABASE 'usage_data.db' AS usage_db")
 
+# TODO determine which join type is best for maintaining scale visually
+# I suspect it would be an outer join
+# SQLite does this by combining a left and right join and
+# removing duplicates. https://stackoverflow.com/questions/4796872/how-can-i-do-a-full-outer-join-in-mysql
+ 
 # Perform INNER JOIN on date column
 query = """
     SELECT w.date, w.afternoon_temp_k, u.usage_kwh

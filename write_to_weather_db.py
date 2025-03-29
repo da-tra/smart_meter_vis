@@ -3,6 +3,11 @@ import sqlite3
 import datetime
 from statistics import median
 
+# TODO run max 750 queries (due to limit of 1000 free 
+# API calls per day)
+# TODO start date is last date from db (if exists) plus one
+# TODO if db is empty, get start date from usage db
+
 # API Details
 with open("api_key.txt", "r") as f:
     API_KEY = f.read()
