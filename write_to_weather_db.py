@@ -1,5 +1,7 @@
 import requests
 import sqlite3
+import csv
+import pandas as pd
 from datetime import datetime, timedelta
 from statistics import median
 
@@ -13,8 +15,28 @@ from statistics import median
 with open("api_key.txt", "r") as f:
     API_KEY = f.read().strip()
 LAT, LON = 48.2083537, 16.3725042
-START_DATE = datetime(2023, 4, 18).date()
-DAYS = 100  # Fetch data for a week
+#Check if there is something in the weather DB
+conn = sqlite3.connect("weather_data.db")
+cursor = conn.cursor()
+query = "SELECT name FROM sqlite_master"
+cursor.execute(query)
+results= cursor.fetchall()
+print(results)
+if results: # There is already something in the SQL
+    #TODO turn this into a function
+    # get last entry date in weather data
+    conn = sqlite3.connect("weather_data.db")
+    cursor = conn.cursor()
+    query = f"SELECT date from WEATHER order by rowid desc LIMIT 1"
+    df = pd.read_sql(query, conn)
+    START_DATE = datetime.strptime(df.iat[0, 0], "%Y-%m-%d")  + timedelta(days=1)
+else:
+    csv_usage = open("TAGESWERTE-20220325-bis-20250324.csv")
+    usage_data = csv.reader(csv_usage, delimiter=";")
+    header = next(usage_data)
+    row = next(usage_data)
+    START_DATE = datetime.strptime(row[0], "%d.%m.%y").strftime("%Y-%m-%d")
+DAYS = 550  # Fetch data for a week
 
 # SQLite Setup
 conn = sqlite3.connect("weather_data.db")
