@@ -25,7 +25,17 @@ for row in usage_data:
     # TODO refactor the following line so it 
     # uses datetime for formatting
     date = f"20{date[-2:]}-{date[3:5]}-{date[0:2]}"
+    # Fetch data and convert from comma ...
     usage = row[1]
+    # print(f"pre-con: {type(date)}: {type(usage)}")
+    # print(f"pre-con: {date}: {usage}")
+    # print(f"type before treatment {type(usage)}")
+    if usage:
+        usage = float(usage.replace(",", "."))
+    print(f"{date}: {usage}")
+
+    print(f"type after treatment {type(usage)}")
+
     cursor.execute("""
         INSERT INTO usage (date, usage_kwh)
         VALUES (?, ?)
@@ -33,7 +43,13 @@ for row in usage_data:
         date,
         usage
     ))
+    # Fetch and print results
+    
+    # print(row[1])
+
+
 conn.commit()
+
 
 csv_usage.close()
 

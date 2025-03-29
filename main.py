@@ -66,5 +66,3 @@ conn_new.close()
 conn.close()
 
 print("Joined data has been successfully saved to 'joined_data.db'.")
-
-# Plot usage data vs weather data
