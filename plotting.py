@@ -1,4 +1,3 @@
-
 # Plot usage data vs weather data
 import plotly.graph_objects as go
 import sqlite3
@@ -9,13 +8,20 @@ cursor_plot = conn.cursor()
 
 # Fetch data from the table
 cursor_plot.execute("SELECT date, afternoon_temp_k, usage_kwh FROM joined_usage_weather ORDER BY date")
-data = cursor_plot.fetchall()  # List of tuples
+
+# Separate data into lists
+dates = []
+temps = []
+usage = []
+
+for row in cursor_plot:
+    date, temp, use = row
+    dates.append(date)
+    temps.append(temp -273.15)
+    usage.append(use)
 
 # Close the connection
 conn.close()
-
-# Separate data into lists
-dates, temps, usage = zip(*data)  # Unpack tuples into separate lists
 
 # Create Plotly figure
 fig = go.Figure([

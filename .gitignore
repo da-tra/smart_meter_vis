@@ -178,3 +178,4 @@ cython_debug/
 .pypircTAGESWERTE-20220325-bis-20250324.csv
 *.db
 api_key.txt
+scratchpad.py

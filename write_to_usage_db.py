@@ -34,9 +34,11 @@ for row in usage_data:
     # print(f"type before treatment {type(usage)}")
     if usage:
         usage = float(usage.replace(",", "."))
-    print(f"{date}: {usage}")
+        print(f"stored in db: {date}: {usage}kWh")
+    else:
+        print(f"stored in db: {date}: None")
 
-    print(f"type after treatment {type(usage)}")
+    # print(f"type after treatment {type(usage)}")
 
     cursor.execute("""
         INSERT INTO usage (date, usage_kwh)
