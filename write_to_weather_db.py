@@ -37,9 +37,9 @@ for i in range(DAYS):
     response = requests.get(url)
     data = response.json()
     # TODO calculate temp_median here
-    temp_values = []
-    temp_values += data['temperature']['min'], data['temperature']['max'], data['temperature']['afternoon'], data['temperature']['morning'], data['temperature']['night']
-    temp_median = median(temp_values) 
+    # temp_values = []
+    # temp_values += data['temperature']['min'], data['temperature']['max'], data['temperature']['afternoon'], data['temperature']['morning'], data['temperature']['night']
+    # temp_median = median(temp_values) 
     
 
     if response.status_code == 200:
@@ -63,6 +63,7 @@ for i in range(DAYS):
         conn.commit()
     else:
         print(f"Failed to fetch data for {date}")
+        print(f"HTTP Response code: {response.status_code}")
 
 # Close Connection
 conn.close()

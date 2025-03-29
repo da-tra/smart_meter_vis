@@ -22,6 +22,8 @@ header = next(usage_data)
 
 for row in usage_data:
     date = row[0]
+    # TODO refactor the following line so it 
+    # uses datetime for formatting
     date = f"20{date[-2:]}-{date[3:5]}-{date[0:2]}"
     usage = row[1]
     cursor.execute("""
@@ -34,3 +36,4 @@ for row in usage_data:
 conn.commit()
 
 csv_usage.close()
+
