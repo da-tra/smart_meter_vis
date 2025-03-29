@@ -22,25 +22,28 @@ query = "SELECT name FROM sqlite_master"
 cursor.execute(query)
 results= cursor.fetchall()
 print(results)
-if results: # There is already something in the SQL
-    #TODO turn this into a function
-    # get last entry date in weather data
-    conn = sqlite3.connect("weather_data.db")
-    cursor = conn.cursor()
-    query = f"SELECT date from WEATHER order by rowid desc LIMIT 1"
-    df = pd.read_sql(query, conn)
-    START_DATE = datetime.strptime(df.iat[0, 0], "%Y-%m-%d")  + timedelta(days=1)
-else:
+if not results:
     csv_usage = open("TAGESWERTE-20220325-bis-20250324.csv")
     usage_data = csv.reader(csv_usage, delimiter=";")
     header = next(usage_data)
     row = next(usage_data)
-    START_DATE = datetime.strptime(row[0], "%d.%m.%y").strftime("%Y-%m-%d")
-DAYS = 550  # Fetch data for a week
+    START_DATE = datetime.strptime(row[0], "%d.%m.%y")
+else:
+    #TODO turn this into a function
+    # get last entry date in weather data
+    query = f"SELECT date from WEATHER order by rowid desc LIMIT 1"
+    df = pd.read_sql(query, conn)
+    if df.empty:
+        csv_usage = open("TAGESWERTE-20220325-bis-20250324.csv")
+        usage_data = csv.reader(csv_usage, delimiter=";")
+        header = next(usage_data)
+        row = next(usage_data)
+        START_DATE = datetime.strptime(row[0], "%d.%m.%y")
+    else:
+        START_DATE = datetime.strptime(df.iat[0, 0], "%Y-%m-%d")  + timedelta(days=1)
 
-# SQLite Setup
-conn = sqlite3.connect("weather_data.db")
-cursor = conn.cursor()
+
+DAYS = 5  # Fetch data for a week
 
 # Create Table
 cursor.execute("""
@@ -62,6 +65,9 @@ conn.commit()
 # Fetch and Store Data
 for i in range(DAYS):
     date = (START_DATE + timedelta(days=i)).strftime("%Y-%m-%d")
+    if date == (datetime.today() - timedelta(days=3)).strftime("%Y-%m-%d"):
+        conn.commit()
+        break
     url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={date}&appid={API_KEY}"
     response = requests.get(url)
     data = response.json()
