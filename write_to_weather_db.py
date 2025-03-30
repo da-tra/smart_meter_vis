@@ -23,22 +23,22 @@ cursor.execute(query)
 results= cursor.fetchall()
 print(results)
 if not results:
-    csv_usage = open("TAGESWERTE-20220325-bis-20250324.csv")
+    csv_usage = open("TAGESWERTE-20220331-bis-20250330.csv")
     usage_data = csv.reader(csv_usage, delimiter=";")
     header = next(usage_data)
     row = next(usage_data)
-    START_DATE = datetime.strptime(row[0], "%d.%m.%y")
+    START_DATE = datetime.strptime(row[0], "%d.%m.%Y")
 else:
     #TODO turn this into a function
     # get last entry date in weather data
     query = f"SELECT date from WEATHER order by rowid desc LIMIT 1"
     df = pd.read_sql(query, conn)
     if df.empty:
-        csv_usage = open("TAGESWERTE-20220325-bis-20250324.csv")
+        csv_usage = open("TAGESWERTE-20220331-bis-20250330.csv")
         usage_data = csv.reader(csv_usage, delimiter=";")
         header = next(usage_data)
         row = next(usage_data)
-        START_DATE = datetime.strptime(row[0], "%d.%m.%y")
+        START_DATE = datetime.strptime(row[0], "%d.%m.%Y")
     else:
         START_DATE = datetime.strptime(df.iat[0, 0], "%Y-%m-%d")  + timedelta(days=1)
 
@@ -52,7 +52,12 @@ cursor.execute("""
         date TEXT,
         min_temp_k REAL,
         max_temp_k REAL,
+        temp_median_no_minmax_k REAL,
+        median_temp_k REAL,
+        morning_temp_k REAL,
         afternoon_temp_k REAL,
+        evening_temp_k REAL,
+        night_temp_k REAL,
         humidity REAL,
         precipitation REAL,
         wind_speed REAL,
@@ -72,9 +77,17 @@ for i in range(DAYS):
     response = requests.get(url)
     data = response.json()
     # TODO calculate temp_median here
-    # temp_values = []
-    # temp_values += data['temperature']['min'], data['temperature']['max'], data['temperature']['afternoon'], data['temperature']['morning'], data['temperature']['night']
-    # temp_median = median(temp_values) 
+    temp_values_no_minmax =[
+        data["temperature"]["morning"], 
+        data["temperature"]["afternoon"],
+        data["temperature"]["evening"],
+        data["temperature"]["night"]
+        ]
+
+    temp_median_no_minmax = median(temp_values_no_minmax)
+    
+    temp_values = data["temperature"].values()
+    temp_median = median(temp_values)
     
 
     if response.status_code == 200:
@@ -82,6 +95,7 @@ for i in range(DAYS):
         # temp_median: calculate in python and add to table
         # TODO change wind column name to wind_max_speed and ..._direction
         # TODO change name to temp_min , ...._max
+        # TODO write json to pydantic model and call it in INSERT INTO
         try:
             cursor.execute("""
                 INSERT INTO weather 
@@ -89,6 +103,8 @@ for i in range(DAYS):
                            date, 
                            min_temp_k, 
                            max_temp_k,
+                           temp_median_no_minmax_k,
+                           median_temp_k,
                            morning_temp_k,
                            afternoon_temp_k,
                            evening_temp_k,
@@ -99,11 +115,13 @@ for i in range(DAYS):
                            wind_direction, 
                            retrieval_date
                            )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 data.get('date'),
                 data['temperature']['min'],
                 data['temperature']['max'],
+                temp_median_no_minmax,
+                temp_median,
                 data['temperature']['morning'],
                 data['temperature']['afternoon'],
                 data['temperature']['evening'],
