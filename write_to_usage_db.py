@@ -18,7 +18,7 @@ conn.commit()
 
 # write data to table
 
-csv_usage = open("TAGESWERTE-20220325-bis-20250324.csv")
+csv_usage = open("TAGESWERTE-20220331-bis-20250330.csv")
 usage_data = csv.reader(csv_usage, delimiter=";")
 header = next(usage_data)
 
