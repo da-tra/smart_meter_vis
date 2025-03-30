@@ -84,13 +84,30 @@ for i in range(DAYS):
         # TODO change name to temp_min , ...._max
         try:
             cursor.execute("""
-                INSERT INTO weather (date, min_temp_k, max_temp_k, afternoon_temp_k, humidity, precipitation, wind_speed, wind_direction, retrieval_date)
+                INSERT INTO weather 
+                           (
+                           date, 
+                           min_temp_k, 
+                           max_temp_k,
+                           morning_temp_k,
+                           afternoon_temp_k,
+                           evening_temp_k,
+                           night_temp_k, 
+                           humidity, 
+                           precipitation, 
+                           wind_speed, 
+                           wind_direction, 
+                           retrieval_date
+                           )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 data.get('date'),
                 data['temperature']['min'],
                 data['temperature']['max'],
+                data['temperature']['morning'],
                 data['temperature']['afternoon'],
+                data['temperature']['evening'],
+                data['temperature']['night'],
                 data['humidity']['afternoon'],
                 data['precipitation']['total'],
                 data['wind']['max']['speed'],

@@ -44,9 +44,7 @@ for row in usage_data:
     
     # print(row[1])
 
-
 conn.commit()
-
 
 csv_usage.close()
 
