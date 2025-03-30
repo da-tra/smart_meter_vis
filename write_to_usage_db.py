@@ -24,9 +24,7 @@ header = next(usage_data)
 
 for row in usage_data:
     date = row[0]
-    # TODO refactor the following line so it 
-    # uses datetime for formatting
-    date = f"20{date[-2:]}-{date[3:5]}-{date[0:2]}"
+    date = datetime.strptime(date, "%d.%m.%Y").strftime("%Y-%m-%d")
     # Fetch data and convert from comma ...
     usage = row[1]
     # print(f"pre-con: {type(date)}: {type(usage)}")
@@ -36,7 +34,8 @@ for row in usage_data:
         usage = float(usage.replace(",", "."))
         print(f"stored in db: {date}: {usage}kWh")
     else:
-        print(f"stored in db: {date}: None")
+        print(f"skipped: {date} (No data)")
+        continue
 
     # print(f"type after treatment {type(usage)}")
 
