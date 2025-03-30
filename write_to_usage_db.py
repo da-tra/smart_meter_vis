@@ -1,6 +1,8 @@
 import sqlite3
 from datetime import datetime
 import csv
+from statistics import median
+
 
 # API Details
 with open("api_key.txt", "r") as f:
@@ -50,7 +52,32 @@ for row in usage_data:
     # print(row[1])
 
 conn.commit()
-# TODO add new columns and data here
+
+
+# TODO add new cweather olumns and data here
+cursor.execute("""
+    ALTER TABLE usage
+        ADD     min_temp_k REAL,
+                max_temp_k REAL,
+                temp_median_no_minmax_k REAL,
+                median_temp_k REAL,
+                morning_temp_k REAL,
+                afternoon_temp_k REAL,
+                evening_temp_k REAL,
+                night_temp_k REAL,
+                humidity REAL,
+                precipitation REAL,
+                wind_speed REAL,
+                wind_direction REAL,
+                retrieval_date TEXT 
+
+    """
+    )
+conn.commit()
+
+# TODO Make switch for free mode or not
+# TODO run max 750 queries (due to limit of 1000 free 
+
 cursor.execute("SELECT date FROM usage WHERE retrieval_date IS NULL OR retrieval_date = ''")
 rows = cursor.fetchall()
 
@@ -61,6 +88,43 @@ for row in rows:
     print(f"Fetching data for {stored_date}...")
 
     # Step 4: Make API call using the stored date
-    url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={date}&appid={API_KEY}"
+    api_url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={date}&appid={API_KEY}"
+    response = requests.get(api_url)
+
+    if response.status_code == 200:
+        data = response.json()  # Parse API response
+
+        temp_values_no_minmax =[
+            data["temperature"]["morning"], 
+            data["temperature"]["afternoon"],
+            data["temperature"]["evening"],
+            data["temperature"]["night"],
+            ]
+
+        temp_median_no_minmax = median(temp_values_no_minmax)
+        
+        temp_values = data["temperature"].values()
+        temp_median = median(temp_values)
+        retrieval_date = datetime.today().strftime('%Y-%m-%d')
+
+        # Step 6: Update the existing row in the `usage` table
+        cursor.execute("""
+            ALTER TABLE usage
+                ADD     min_temp_k REAL,
+                        max_temp_k REAL,
+                        temp_median_no_minmax_k REAL,
+                        median_temp_k REAL,
+                        morning_temp_k REAL,
+                        afternoon_temp_k REAL,
+                        evening_temp_k REAL,
+                        night_temp_k REAL,
+                        humidity REAL,
+                        precipitation REAL,
+                        wind_speed REAL,
+                        wind_direction REAL,
+                        retrieval_date TEXT 
+
+            """
+    
 csv_usage.close()
 
