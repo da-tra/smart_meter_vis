@@ -4,16 +4,27 @@ from datetime import datetime
 import csv
 from statistics import median
 
-# API Details
+# API Details: Get API key for weather app
 with open("api_key.txt", "r") as f:
     API_KEY = f.read().strip()
+# Set longitude and latitude (for API call) to Vienna, AT
 LAT, LON = 48.2083537, 16.3725042
 
-# Set API call limit
-API_CALL_LIMIT = 750  # Change this number as needed
+# Limit costs by limiting API call  
+API_CALL_LIMIT = 75  # Change this number as needed
 
+
+
+# Read and insert data from CSV
+csv_usage = open("TAGESWERTE-20220331-bis-20250330.csv")
+usage_data = csv.reader(csv_usage, delimiter=";")
+header = next(usage_data)
+
+# The next section stores all gathered data in an sql table 
+# Define name of db file
+filename_db = "weather_vs_power_usage.db"
 # Create database connection
-conn = sqlite3.connect("usage_data.db")
+conn = sqlite3.connect(filename_db)
 cursor = conn.cursor()
 
 # Create table if not exists
@@ -25,11 +36,6 @@ cursor.execute("""
     )
 """)
 conn.commit()
-
-# Read and insert data from CSV
-csv_usage = open("TAGESWERTE-20220331-bis-20250330.csv")
-usage_data = csv.reader(csv_usage, delimiter=";")
-header = next(usage_data)
 
 for row in usage_data:
     date = datetime.strptime(row[0], "%d.%m.%Y").strftime("%Y-%m-%d")
