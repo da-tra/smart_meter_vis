@@ -14,22 +14,21 @@ LAT, LON = 48.2083537, 16.3725042
 API_CALL_LIMIT = 75  # Change this number as needed
 
 
-
-# Read and insert data from CSV
+# Read CSV with usage data (generated via customer profile at https://smartmeter-web.wienernetze.at/ ) load the data with the module csv
 csv_usage = open("TAGESWERTE-20220331-bis-20250330.csv")
 usage_data = csv.reader(csv_usage, delimiter=";")
 header = next(usage_data)
 
-# The next section stores all gathered data in an sql table 
+# The next section stores usage data in an sql table 
 # Define name of db file
-filename_db = "weather_vs_power_usage.db"
+filename_db = "power_usage_vs_weather.db"
 # Create database connection
 conn = sqlite3.connect(filename_db)
 cursor = conn.cursor()
 
 # Create table if not exists
 cursor.execute("""
-    CREATE TABLE IF NOT EXISTS usage (
+    CREATE TABLE IF NOT EXISTS power_usage_vs_weather (
         id INTEGER PRIMARY KEY,
         date TEXT UNIQUE,
         usage_kwh REAL
@@ -49,7 +48,7 @@ for row in usage_data:
         continue
 
     cursor.execute("""
-        INSERT INTO usage (date, usage_kwh)
+        INSERT INTO power_usage_vs_weather (date, usage_kwh)
         VALUES (?, ?)
     """, (date, usage))
 
@@ -64,14 +63,14 @@ columns = [
 
 for column in columns:
     try:
-        cursor.execute(f"ALTER TABLE usage ADD COLUMN {column} REAL")
+        cursor.execute(f"ALTER TABLE power_usage_vs_weather ADD COLUMN {column} REAL")
     except sqlite3.OperationalError:
         pass  # Column already exists
 
 conn.commit()
 
 # **Step 2: Fetch missing data from API**
-cursor.execute("SELECT date FROM usage WHERE retrieval_date IS NULL OR retrieval_date = '' LIMIT ?", (API_CALL_LIMIT,))
+cursor.execute("SELECT date FROM power_usage_vs_weather WHERE retrieval_date IS NULL OR retrieval_date = '' LIMIT ?", (API_CALL_LIMIT,))
 rows = cursor.fetchall()
 
 api_calls_made = 0  # Track number of API calls
@@ -112,7 +111,7 @@ for row in rows:
 
         # **Step 3: Update database with API data**
         cursor.execute("""
-            UPDATE usage
+            UPDATE power_usage_vs_weather
             SET min_temp_k = ?, max_temp_k = ?, temp_median_no_minmax_k = ?, median_temp_k = ?, 
                 morning_temp_k = ?, afternoon_temp_k = ?, evening_temp_k = ?, night_temp_k = ?, 
                 humidity = ?, precipitation = ?, wind_speed = ?, wind_direction = ?, retrieval_date = ?
