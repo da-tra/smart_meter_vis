@@ -85,137 +85,138 @@ for row in usage_data:
 
     cursor.execute(query, (date_csv, usage))  # Pass values safely
 conn.commit()
+conn.close()
 
 
+# The next section 
+# 1) Defines details for an API GET call to Openweathermap.org
+# 2) Adds new columns for the expected data shape to the SQL table power_usage_vs_weather
 
-# # The next section 
-# # 1) Defines details for an API GET call to Openweathermap.org
-# # 2) Adds new columns for the expected data shape to the SQL table power_usage_vs_weather
+# API Details: Get API key for weather app
+with open("api_key.txt", "r") as f:
+    API_KEY = f.read().strip()
+# Set longitude and latitude (for API call) to Vienna, AT
+LAT, LON = 48.2083537, 16.3725042
 
-# # API Details: Get API key for weather app
-# with open("api_key.txt", "r") as f:
-#     API_KEY = f.read().strip()
-# # Set longitude and latitude (for API call) to Vienna, AT
-# LAT, LON = 48.2083537, 16.3725042
+# Limit costs by limiting API call  
+API_CALL_LIMIT = 75  # Change this number as needed
 
-# # Limit costs by limiting API call  
-# API_CALL_LIMIT = 75  # Change this number as needed
+# Define new columns with their respective types
+columns = {
+    "min_temp_k": "REAL",
+    "max_temp_k": "REAL",
+    "temp_median_no_minmax_k": "REAL",
+    "median_temp_k": "REAL",
+    "morning_temp_k": "REAL",
+    "afternoon_temp_k": "REAL",
+    "evening_temp_k": "REAL",
+    "night_temp_k": "REAL",
+    "humidity": "REAL",
+    "precipitation": "REAL",
+    "wind_speed": "REAL",
+    "wind_direction": "REAL",
+    "retrieval_date": "TEXT"  # Store date as TEXT in SQLite
+}
 
-# # Define new columns with their respective types
-# columns = {
-#     "min_temp_k": "REAL",
-#     "max_temp_k": "REAL",
-#     "temp_median_no_minmax_k": "REAL",
-#     "median_temp_k": "REAL",
-#     "morning_temp_k": "REAL",
-#     "afternoon_temp_k": "REAL",
-#     "evening_temp_k": "REAL",
-#     "night_temp_k": "REAL",
-#     "humidity": "REAL",
-#     "precipitation": "REAL",
-#     "wind_speed": "REAL",
-#     "wind_direction": "REAL",
-#     "retrieval_date": "TEXT"  # Store date as TEXT in SQLite
-# }
+# Add new columns only if they don't exist Define new column names for weather data and 
+# add new weather-related columns to the table (only if they don't exist)
+##########
+## Trash the following list?
+# columns = [
+#     "min_temp_k",
+#     "max_temp_k", "temp_median_no_minmax_k",
+#     "median_temp_k",
+#     "morning_temp_k",
+#     "afternoon_temp_k",
+#     "evening_temp_k",
+#     "night_temp_k",
+#     "humidity",
+#     "precipitation",
+#     "wind_speed",
+#     "wind_direction",
+#     "retrieval_date",
+#     ]
+#########
+conn = sqlite3.connect(filename_db)
+cursor = conn.cursor()
+for column in columns:
+    try:
+        cursor.execute(f"ALTER TABLE power_usage_vs_weather ADD COLUMN {column} REAL")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+for column, col_type in columns.items():
+    sql_query = "ALTER TABLE power_usage_vs_weather ADD COLUMN {} {}".format(column, col_type)
+    try:
+        cursor.execute(sql_query)
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
-# # Add new columns only if they don't exist Define new column names for weather data and 
-# # add new weather-related columns to the table (only if they don't exist)
-# ##########
-# ## Trash the following list?
-# # columns = [
-# #     "min_temp_k",
-# #     "max_temp_k", "temp_median_no_minmax_k",
-# #     "median_temp_k",
-# #     "morning_temp_k",
-# #     "afternoon_temp_k",
-# #     "evening_temp_k",
-# #     "night_temp_k",
-# #     "humidity",
-# #     "precipitation",
-# #     "wind_speed",
-# #     "wind_direction",
-# #     "retrieval_date",
-# #     ]
-# #########
-# for column in columns:
-#     try:
-#         cursor.execute(f"ALTER TABLE power_usage_vs_weather ADD COLUMN {column} REAL")
-#     except sqlite3.OperationalError:
-#         pass  # Column already exists
-# for column, col_type in columns.items():
-#     sql_query = "ALTER TABLE power_usage_vs_weather ADD COLUMN {} {}".format(column, col_type)
-#     try:
-#         cursor.execute(sql_query)
-#     except sqlite3.OperationalError:
-#         pass  # Column already exists
-
-# # Commit changes and close connection
-# conn.commit()
-# conn.close()
+# Commit changes and close connection
+conn.commit()
 
 
-# # **Step 2: Fetch missing data from API**
-# cursor.execute("SELECT date FROM power_usage_vs_weather WHERE retrieval_date IS NULL OR retrieval_date = '' LIMIT ?", (API_CALL_LIMIT,))
-# rows = cursor.fetchall()
+# **Step 2: Fetch missing data from API**
+cursor.execute("SELECT date FROM power_usage_vs_weather WHERE retrieval_date IS NULL OR retrieval_date = '' LIMIT ?", (API_CALL_LIMIT,))
+rows = cursor.fetchall()
 
-# api_calls_made = 0  # Track number of API calls
+api_calls_made = 0  # Track number of API calls
 
-# for row in rows:
-#     if api_calls_made >= API_CALL_LIMIT:
-#         print("API call limit reached. Stopping further requests.")
-#         break
+for row in rows:
+    if api_calls_made >= API_CALL_LIMIT:
+        print("API call limit reached. Stopping further requests.")
+        break
 
-#     stored_date = row[0]
-#     print(f"Fetching data for {stored_date}...")
+    stored_date = row[0]
+    print(f"Fetching data for {stored_date}...")
 
-#     # API Call
-#     api_url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={stored_date}&appid={API_KEY}"
-#     response = requests.get(api_url)
+    # API Call
+    api_url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={stored_date}&appid={API_KEY}"
+    response = requests.get(api_url)
 
-#     if response.status_code == 200:
-#         data = response.json()  # Parse JSON
+    if response.status_code == 200:
+        data = response.json()  # Parse JSON
 
-#         # Compute temperature medians
-#         temp_values_no_minmax = [
-#             data["temperature"]["morning"],
-#             data["temperature"]["afternoon"],
-#             data["temperature"]["evening"],
-#             data["temperature"]["night"]
-#         ]
-#         temp_median_no_minmax = median(temp_values_no_minmax)
+        # Compute temperature medians
+        temp_values_no_minmax = [
+            data["temperature"]["morning"],
+            data["temperature"]["afternoon"],
+            data["temperature"]["evening"],
+            data["temperature"]["night"]
+        ]
+        temp_median_no_minmax = median(temp_values_no_minmax)
 
-#         temp_values = [
-#             data["temperature"]["min"],
-#             data["temperature"]["max"],
-#             *temp_values_no_minmax
-#         ]
-#         temp_median = median(temp_values)
+        temp_values = [
+            data["temperature"]["min"],
+            data["temperature"]["max"],
+            *temp_values_no_minmax
+        ]
+        temp_median = median(temp_values)
 
-#         # Prepare update data
-#         retrieval_date = datetime.today().strftime('%Y-%m-%d')
+        # Prepare update data
+        retrieval_date = datetime.today().strftime('%Y-%m-%d')
 
-#         # **Step 3: Update database with API data**
-#         cursor.execute("""
-#             UPDATE power_usage_vs_weather
-#             SET min_temp_k = ?, max_temp_k = ?, temp_median_no_minmax_k = ?, median_temp_k = ?, 
-#                 morning_temp_k = ?, afternoon_temp_k = ?, evening_temp_k = ?, night_temp_k = ?, 
-#                 humidity = ?, precipitation = ?, wind_speed = ?, wind_direction = ?, retrieval_date = ?
-#             WHERE date = ?
-#         """, (
-#             data["temperature"]["min"], data["temperature"]["max"],
-#             temp_median_no_minmax, temp_median,
-#             data["temperature"]["morning"], data["temperature"]["afternoon"],
-#             data["temperature"]["evening"], data["temperature"]["night"],
-#             data["humidity"]["afternoon"], data["precipitation"]["total"],
-#             data["wind"]["max"]["speed"], data["wind"]["max"]["direction"],
-#             retrieval_date, stored_date
-#         ))
+        # **Step 3: Update database with API data**
+        cursor.execute("""
+            UPDATE power_usage_vs_weather
+            SET min_temp_k = ?, max_temp_k = ?, temp_median_no_minmax_k = ?, median_temp_k = ?, 
+                morning_temp_k = ?, afternoon_temp_k = ?, evening_temp_k = ?, night_temp_k = ?, 
+                humidity = ?, precipitation = ?, wind_speed = ?, wind_direction = ?, retrieval_date = ?
+            WHERE date = ?
+        """, (
+            data["temperature"]["min"], data["temperature"]["max"],
+            temp_median_no_minmax, temp_median,
+            data["temperature"]["morning"], data["temperature"]["afternoon"],
+            data["temperature"]["evening"], data["temperature"]["night"],
+            data["humidity"]["afternoon"], data["precipitation"]["total"],
+            data["wind"]["max"]["speed"], data["wind"]["max"]["direction"],
+            retrieval_date, stored_date
+        ))
 
-#         conn.commit()
-#         print(f"Updated: {stored_date}")
-#         api_calls_made += 1
-#     else:
-#         print(f"API call failed for {stored_date}: {response.status_code}")
+        conn.commit()
+        print(f"Updated: {stored_date}")
+        api_calls_made += 1
+    else:
+        print(f"API call failed for {stored_date}: {response.status_code}")
 
 # Close resources
 csv_usage.close()
