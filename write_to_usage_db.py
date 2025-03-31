@@ -39,9 +39,9 @@ conn.commit()
 # Write usage data from CSV object to SQL table
 for row in usage_data:
     # Get date from first column 
-    date = row[0]
-    date = datetime.strptime(date, "%d.%m.%Y")
-    date = date.strftime("%Y-%m-%d")
+    date_csv = row[0]
+    date_csv = datetime.strptime(date_csv, "%d.%m.%Y")
+    date_csv = date_csv.strftime("%Y-%m-%d")
 
     # Get power consumption from second column
     usage = row[1]
@@ -57,20 +57,33 @@ for row in usage_data:
 
     if usage:
         usage = float(usage.replace(",", "."))
-        print(f"Stored in DB: {date}: {usage} kWh")
+        print(f"Stored in DB: {date_csv}: {usage} kWh")
     else:
-        print(f"Skipped: {date} (No data)")
+        print(f"Skipped: {date_csv} (No data)")
         continue
 
     # (ctd.) If there is data in the csv:
     #   3) check if the same data already exists in the sql table
+    query = f"SELECT usage_kwh FROM {table_name} WHERE date = ?"
+    cursor.execute(query, (date_csv,))
+
+    rows_sql = cursor.fetchone()
+
+    if not rows_sql:
+        print(f"No data in {filename_db}:{table_name} for {date_csv}")
+        # add the new data!
+    else:
+        for row_sql in rows_sql:
+            print(f"{usage} on {date_csv}: {row} (Already in database)")
+        # restart loop
+        continue
     #   4) write row sql table using .format()
     query = """
         INSERT INTO {} (date, usage_kwh)
         VALUES (?, ?)
     """.format(table_name)  # Use format only for table name
 
-    cursor.execute(query, (date, usage))  # Pass values safely
+    cursor.execute(query, (date_csv, usage))  # Pass values safely
 conn.commit()
 
 
