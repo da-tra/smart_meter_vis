@@ -10,15 +10,19 @@ from statistics import median
 # Read CSV with usage data (generated via customer profile at https://smartmeter-web.wienernetze.at/ ) load the data with the module csv
 
 # TODO everything using a with statement for opening the csv
-csv_usage = open("TAGESWERTE-20220331-bis-20250330.csv")
+# TODO generalise this section to include any .csv file in the specified folder
+filename_csv = "TAGESWERTE-20220331-bis-20250330.csv"
+filepath_csv = f"./smart_meter_data/{filename_csv}"
+csv_usage = open(filepath_csv)
 usage_data = csv.reader(csv_usage, delimiter=";")
 header = next(usage_data)
 
 # The next section stores usage data in an sql table 
 # Define name of db file
 filename_db = "power_usage_vs_weather.db"
+filepath_db = f"./db/{filename_db}"
 # Create database connection
-conn = sqlite3.connect(filename_db)
+conn = sqlite3.connect(filepath_db)
 cursor = conn.cursor()
 
 # Define table name
@@ -139,7 +143,7 @@ for column, col_type in columns.items():
 conn.commit()
 
 
-# **Step 2: Fetch missing data from API**
+# Fetch missing data from API
 cursor.execute("SELECT date FROM power_usage_vs_weather WHERE retrieval_date IS NULL OR retrieval_date = '' LIMIT ?", (API_CALL_LIMIT,))
 rows = cursor.fetchall()
 
