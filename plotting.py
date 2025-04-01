@@ -3,11 +3,11 @@ import plotly.graph_objects as go
 import sqlite3
 
 # Connect to the database
-conn = sqlite3.connect("joined_data.db")
+conn = sqlite3.connect("power_usage_vs_weather.db")
 cursor_plot = conn.cursor()
 
 # Fetch data from the table
-cursor_plot.execute("SELECT date, afternoon_temp_k, usage_kwh FROM joined_usage_weather ORDER BY date")
+cursor_plot.execute("SELECT date, afternoon_temp_k, usage_kwh FROM power_usage_vs_weather ORDER BY date")
 
 # Separate data into lists
 dates = []
@@ -17,7 +17,7 @@ usage = []
 for row in cursor_plot:
     date, temp, use = row
     dates.append(date)
-    temps.append(temp -273.15)
+    temps.append(temp)
     usage.append(use)
 
 # Close the connection
@@ -25,7 +25,7 @@ conn.close()
 
 # Create Plotly figure
 fig = go.Figure([
-    go.Scatter(x=dates, y=temps, mode="lines", name="Temperature (K)"),
+    go.Scatter(x=dates, y=temps, mode="lines", name="Temperature"),
     go.Scatter(x=dates, y=usage, mode="lines", name="Electricity Usage (kWh)", yaxis="y2")
 ])
 

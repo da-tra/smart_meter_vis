@@ -115,28 +115,12 @@ columns = {
     "precipitation": "REAL",
     "wind_speed": "REAL",
     "wind_direction": "REAL",
-    "retrieval_date": "TEXT"  # Store date as TEXT in SQLite
-}
+    "retrieval_date": "TEXT",
+    }
 
-# Add new columns only if they don't exist Define new column names for weather data and 
+# Define new column names for weather data and 
 # add new weather-related columns to the table (only if they don't exist)
-##########
-## Trash the following list?
-# columns = [
-#     "min_temp_k",
-#     "max_temp_k", "temp_median_no_minmax_k",
-#     "median_temp_k",
-#     "morning_temp_k",
-#     "afternoon_temp_k",
-#     "evening_temp_k",
-#     "night_temp_k",
-#     "humidity",
-#     "precipitation",
-#     "wind_speed",
-#     "wind_direction",
-#     "retrieval_date",
-#     ]
-#########
+
 conn = sqlite3.connect(filename_db)
 cursor = conn.cursor()
 for column in columns:
@@ -202,15 +186,16 @@ for row in rows:
                 morning_temp_k = ?, afternoon_temp_k = ?, evening_temp_k = ?, night_temp_k = ?, 
                 humidity = ?, precipitation = ?, wind_speed = ?, wind_direction = ?, retrieval_date = ?
             WHERE date = ?
-        """, (
-            data["temperature"]["min"], data["temperature"]["max"],
-            temp_median_no_minmax, temp_median,
-            data["temperature"]["morning"], data["temperature"]["afternoon"],
-            data["temperature"]["evening"], data["temperature"]["night"],
-            data["humidity"]["afternoon"], data["precipitation"]["total"],
-            data["wind"]["max"]["speed"], data["wind"]["max"]["direction"],
-            retrieval_date, stored_date
-        ))
+            """, (
+                data["temperature"]["min"], data["temperature"]["max"],
+                temp_median_no_minmax, temp_median,
+                data["temperature"]["morning"], data["temperature"]["afternoon"],
+                data["temperature"]["evening"], data["temperature"]["night"],
+                data["humidity"]["afternoon"], data["precipitation"]["total"],
+                data["wind"]["max"]["speed"], data["wind"]["max"]["direction"],
+                retrieval_date, stored_date
+                )
+            )
 
         conn.commit()
         print(f"Updated: {stored_date}")
