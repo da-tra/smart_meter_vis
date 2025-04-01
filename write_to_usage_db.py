@@ -11,7 +11,7 @@ from statistics import median
 
 # TODO everything using a with statement for opening the csv
 # TODO generalise this section to include any .csv file in the specified folder
-filename_csv = "TAGESWERTE-20220331-bis-20250330.csv"
+filename_csv = "TAGESWERTE-20220325-bis-20250324.csv"
 filepath_csv = f"./smart_meter_data/{filename_csv}"
 csv_usage = open(filepath_csv)
 usage_data = csv.reader(csv_usage, delimiter=";")
@@ -44,7 +44,7 @@ conn.commit()
 for row in usage_data:
     # Get date from first column 
     date_csv = row[0]
-    date_csv = datetime.strptime(date_csv, "%d.%m.%Y")
+    date_csv = datetime.strptime(date_csv, "%d.%m.%y")
     date_csv = date_csv.strftime("%Y-%m-%d")
 
     # Get power consumption from second column
@@ -74,7 +74,7 @@ for row in usage_data:
     rows_sql = cursor.fetchone()
 
     if not rows_sql:
-        print(f"No data in {filename_db}:{table_name} for {date_csv}")
+        print(f"No data in {filepath_db}:{table_name} for {date_csv}")
         # add the new data!
     else:
         for row_sql in rows_sql:
@@ -103,7 +103,7 @@ with open("api_key.txt", "r") as f:
 LAT, LON = 48.2083537, 16.3725042
 
 # Limit costs by limiting API call  
-API_CALL_LIMIT = 75  # Change this number as needed
+API_CALL_LIMIT = 900  # Change this number as needed
 
 # Define new columns with their respective types
 columns = {
@@ -125,23 +125,22 @@ columns = {
 # Define new column names for weather data and 
 # add new weather-related columns to the table (only if they don't exist)
 
-conn = sqlite3.connect(filename_db)
+conn = sqlite3.connect(filepath_db)
 cursor = conn.cursor()
-for column in columns:
-    try:
-        cursor.execute(f"ALTER TABLE power_usage_vs_weather ADD COLUMN {column} REAL")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
 for column, col_type in columns.items():
-    sql_query = "ALTER TABLE power_usage_vs_weather ADD COLUMN {} {}".format(column, col_type)
+    sql_query = f"ALTER TABLE {table_name} ADD COLUMN {column} {col_type}"
+    print(f"query: {sql_query}")
     try:
         cursor.execute(sql_query)
     except sqlite3.OperationalError:
-        pass  # Column already exists
+        print(f"operational error: {column} already exists")
+        # Column already exists
 
 # Commit changes and close connection
 conn.commit()
 
+# conn = sqlite3.connect(filepath_db)
+# cursor = conn.cursor()
 
 # Fetch missing data from API
 cursor.execute("SELECT date FROM power_usage_vs_weather WHERE retrieval_date IS NULL OR retrieval_date = '' LIMIT ?", (API_CALL_LIMIT,))
