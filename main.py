@@ -15,97 +15,98 @@ from utils import utils
 # Read CSV with usage data (generated via customer profile at https://smartmeter-web.wienernetze.at/ ) 
 # load the data with the module csv
 
-# TODO everything using a with statement for opening the csv
 # TODO generalise this section to include any .csv file in the specified folder
 filename_csv = "TAGESWERTE-20220325-bis-20250324.csv"
 filepath_csv = f"./smart_meter_data/{filename_csv}"
-csv_usage = open(filepath_csv)
-usage_data = csv.reader(csv_usage, delimiter=";")
-header = next(usage_data)
+with open(filepath_csv, mode="r", encoding="utf-8") as f:  # noqa: PTH123
+    usage_data = csv.reader(f, delimiter=";")
+    # Load the header row and advance to next row
+    header = next(usage_data)
+    print(f" header: {header}")
 
-# Store usage data in an sql table
-# Define name of database file
-filename_db = "power_usage_vs_weather.db"
-# Create path based on database filename
-# All databases are to be stored in the directory "./db"
-filepath_db = f"./db/{filename_db}"
-# Create database connection
-conn = sqlite3.connect(filepath_db)
-cursor = conn.cursor()
+    # Store usage data in an sql table
+    # Define name of database file
+    filename_db = "power_usaasdfasdfge_vs_weather.db"
+    # Create path based on database filename
+    # All databases are to be stored in the directory "./db"
+    filepath_db = f"./db/{filename_db}"
+    # Create database connection
+    conn = sqlite3.connect(filepath_db)
+    cursor = conn.cursor()
 
-# Define table name
-table_name = "power_usage_vs_weather"
-# Define the column names and their types in a dictionary ("column": "TYPE")
-columns_usage = {
-    "id": "INTEGER PRIMARY KEY",
-    "date": "TEXT UNIQUE",
-    "usage_kwh": "REAL",
-    }
+    # Define table name
+    table_name = "power_usage_vs_weather"
+    # Define the column names and their types in a dictionary ("column": "TYPE")
+    columns_usage = {
+        "id": "INTEGER PRIMARY KEY",
+        "date": "TEXT UNIQUE",
+        "usage_kwh": "REAL",
+        }
 
-# Construct the SQL query for creating a table if it doesn't exist
-columns_block = utils.build_columns_string(columns_usage)
+    # Construct the SQL query for creating a table if it doesn't exist
+    columns_block = utils.build_columns_string(columns_usage)
 
-query = f"""
-CREATE TABLE IF NOT EXISTS {table_name} (
-    {columns_block}
-)
-"""
-# Execure the query and commit the results to the database
-cursor.execute(query)
-conn.commit()
-
-# Write usage data from CSV object to the newly created SQL table
-for row in usage_data:
-    # Get date from first column and format to YYYY-MM-DD
-    date_csv = row[0]
-    date_csv = datetime.strptime(date_csv, "%d.%m.%y")
-    date_csv = date_csv.strftime("%Y-%m-%d")
-
-    # Get power consumption from second column
-    usage = row[1]
-
-    # If the current row of the usage csv is empty:
-    #   i) report missing data
-    #   ii) leave loop, work to next row
-    if not usage:
-        print(f"Skipped: {date_csv} (No data)")
-        continue
-    # Otherwise: reformat usage data from 1,12 to 1.23
-    else:
-        usage = float(usage.replace(",", "."))
-
-    # Only write this day's usage data to the sql table if there is no data for it
-    #   Query the sql table for data for the date from the csv
-    query = f"SELECT usage_kwh FROM {table_name} WHERE date = ?"
-    cursor.execute(query, (date_csv,))
-    #   Examine the result for content
-    rows_sql = cursor.fetchone()
-
-    if not rows_sql:
-        print(f"No data in {filepath_db}:{table_name} for {date_csv}")
-        # add the new data!
-    else:
-        for row_sql in rows_sql:
-            print(f"{usage} on {date_csv}: {row} (Already in database)")
-        # restart loop
-        continue
-    #   Write row to sql table
     query = f"""
-            INSERT INTO {table_name} (date, usage_kwh)
-            VALUES (?, ?)
-            """  # noqa: S608
+    CREATE TABLE IF NOT EXISTS {table_name} (
+        {columns_block}
+    )
+    """
+    # Execure the query and commit the results to the database
+    cursor.execute(query)
+    conn.commit()
 
-    cursor.execute(query, (date_csv, usage))  # Pass values safely
-conn.commit()
-conn.close()
+    # Write usage data from CSV object to the newly created SQL table
+    for row in usage_data:
+        # Get date from first column and format to YYYY-MM-DD
+        date_csv = row[0]
+        date_csv = datetime.strptime(date_csv, "%d.%m.%y")
+        date_csv = date_csv.strftime("%Y-%m-%d")
+
+        # Get power consumption from second column
+        usage = row[1]
+
+        # If the current row of the usage csv is empty:
+        #   i) report missing data
+        #   ii) leave loop, work to next row
+        if not usage:
+            print(f"Skipped: {date_csv} (No data)")
+            continue
+        # Otherwise: reformat usage data from 1,12 to 1.23
+        else:
+            usage = float(usage.replace(",", "."))
+
+        # Only write this day's usage data to the sql table if there is no data for it
+        #   Query the sql table for data for the date from the csv
+        query = f"SELECT usage_kwh FROM {table_name} WHERE date = ?"
+        cursor.execute(query, (date_csv,))
+        #   Examine the result for content
+        rows_sql = cursor.fetchone()
+
+        if not rows_sql:
+            print(f"Adding usage data for {date_csv} to {filepath_db}:{table_name}")
+            # add the new data!
+        else:
+            for row_sql in rows_sql:
+                print(f"{usage} kWh on {date_csv}: (Already in database)")
+            # restart loop
+            continue
+        #   Write row to sql table
+        query = f"""
+                INSERT INTO {table_name} (date, usage_kwh)
+                VALUES (?, ?)
+                """  # noqa: S608
+
+        cursor.execute(query, (date_csv, usage))  # Pass values safely
+    conn.commit()
+    conn.close()
 
 
-# The next section...
-# 1) defines details for an API GET call to Openweathermap.org
-# 2) adds new columns for the expected data shape to the SQL table power_usage_vs_weather
+# This next section...
+# 1) defines details for an API GET call to Openweathermap.org for daily weather data
+# 2) adds new columns for the expected data shape to the SQL table
 
 # API Details: Get API key for weather app
-with open("api_key.txt", "r") as f:
+with open("api_key.txt", "r") as f:  # noqa: PTH123
     API_KEY = f.read().strip()
 # Set longitude and latitude (for API call) to Vienna, AT
 LAT, LON = 48.2083537, 16.3725042
@@ -214,8 +215,7 @@ for row in rows:
     else:
         print(f"API call failed for {stored_date}: {response.status_code}")
 
-# Close resources
-csv_usage.close()
+# Close connection
 conn.close()
 
 # Plot usage data vs weather data
