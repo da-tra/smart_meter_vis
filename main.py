@@ -1,14 +1,19 @@
-import requests
-import sqlite3
-import pyarrow as pa
-from datetime import datetime
+"""Generate a visualisation of your smart meter data in .csv format.
+
+The visualisation includes graphs for weather data for Vienna.
+"""
 import csv
+import sqlite3
+from datetime import datetime
 from statistics import median
 
 import plotly.graph_objects as go
+import requests
 
+from utils import utils
 
-# Read CSV with usage data (generated via customer profile at https://smartmeter-web.wienernetze.at/ ) load the data with the module csv
+# Read CSV with usage data (generated via customer profile at https://smartmeter-web.wienernetze.at/ ) 
+# load the data with the module csv
 
 # TODO everything using a with statement for opening the csv
 # TODO generalise this section to include any .csv file in the specified folder
@@ -18,9 +23,11 @@ csv_usage = open(filepath_csv)
 usage_data = csv.reader(csv_usage, delimiter=";")
 header = next(usage_data)
 
-# The next section stores usage data in an sql table 
-# Define name of db file
+# Store usage data in an sql table
+# Define name of database file
 filename_db = "power_usage_vs_weather.db"
+# Create path based on database filename
+# All databases are to be stored in the directory "./db"
 filepath_db = f"./db/{filename_db}"
 # Create database connection
 conn = sqlite3.connect(filepath_db)
@@ -28,15 +35,21 @@ cursor = conn.cursor()
 
 # Define table name
 table_name = "power_usage_vs_weather"
+# Define the column names and their types in a dictionary ("column": "TYPE")
+columns_usage = {
+    "id": "INTEGER PRIMARY KEY",
+    "date": "TEXT UNIQUE",
+    "usage_kwh": "REAL",
+    }
 
-# Construct the SQL query using .format() if it doesn't exist
-query = """
-    CREATE TABLE IF NOT EXISTS {} (
-        id INTEGER PRIMARY KEY,
-        date TEXT UNIQUE,
-        usage_kwh REAL
-    )
-    """.format(table_name)
+# Construct the SQL query for creating a table if it doesn't exist
+columns_block = utils.build_columns_string(columns_usage)
+
+query = f"""
+CREATE TABLE IF NOT EXISTS {table_name} (
+    {columns_block}
+)
+"""
 cursor.execute(query)
 
 conn.commit()
