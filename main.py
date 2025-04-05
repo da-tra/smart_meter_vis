@@ -24,9 +24,9 @@ with open(filepath_csv, mode="r", encoding="utf-8") as f:  # noqa: PTH123
     header = next(usage_data)
     print(f" header: {header}")
 
-    # Store usage data in an sql table
+    # Store usage data in an SQL table
     # Define name of database file
-    filename_db = "power_usaasdfasdfge_vs_weather.db"
+    filename_db = "power_usage_vs_weather.db"
     # Create path based on database filename
     # All databases are to be stored in the directory "./db"
     filepath_db = f"./db/{filename_db}"
@@ -69,52 +69,54 @@ with open(filepath_csv, mode="r", encoding="utf-8") as f:  # noqa: PTH123
         #   i) report missing data
         #   ii) leave loop, work to next row
         if not usage:
-            print(f"Skipped: {date_csv} (No data)")
+            print(f"Skipped: {date_csv} (No data)")  # noqa: T201
             continue
         # Otherwise: reformat usage data from 1,12 to 1.23
         else:
             usage = float(usage.replace(",", "."))
 
-        # Only write this day's usage data to the sql table if there is no data for it
-        #   Query the sql table for data for the date from the csv
+        # Only write usage data for selected date to the SQL table if there is none yet
+        #   Query the SQL table for data for the date from the csv
         query = f"SELECT usage_kwh FROM {table_name} WHERE date = ?"
         cursor.execute(query, (date_csv,))
         #   Examine the result for content
         rows_sql = cursor.fetchone()
 
         if not rows_sql:
+            # If there is now content, add the new data
             print(f"Adding usage data for {date_csv} to {filepath_db}:{table_name}")
-            # add the new data!
         else:
+            # Otherwise end this loop iteration early
             for row_sql in rows_sql:
                 print(f"{usage} kWh on {date_csv}: (Already in database)")
-            # restart loop
             continue
+
         #   Write row to sql table
         query = f"""
                 INSERT INTO {table_name} (date, usage_kwh)
                 VALUES (?, ?)
                 """  # noqa: S608
+        cursor.execute(query, (date_csv, usage))
 
-        cursor.execute(query, (date_csv, usage))  # Pass values safely
     conn.commit()
     conn.close()
 
 
 # This next section...
-# 1) defines details for an API GET call to Openweathermap.org for daily weather data
-# 2) adds new columns for the expected data shape to the SQL table
+# - defines details for an API GET call to Openweathermap.org for daily weather data
+# - expands the SQL table by adding new columns to accommodate data received via API
 
 # API Details: Get API key for weather app
 with open("api_key.txt", "r") as f:  # noqa: PTH123
     API_KEY = f.read().strip()
-# Set longitude and latitude (for API call) to Vienna, AT
+# Set longitude and latitude to Vienna, AT
 LAT, LON = 48.2083537, 16.3725042
 
-# Limit costs by limiting API call  
+# Limit API costs by limiting the number API calls
 API_CALL_LIMIT = 9  # Change this number as needed
 
-# Define new columns with their respective types
+# Define new columns with their respective types. These are defined by the API response
+# For JSON schema see API documentation: https://openweathermap.org/api/one-call-3#hist_agr_parameter
 columns = {
     "min_temp_k": "REAL",
     "max_temp_k": "REAL",
@@ -131,25 +133,22 @@ columns = {
     "retrieval_date": "TEXT",
     }
 
-# Define new column names for weather data and 
-# add new weather-related columns to the table (only if they don't exist)
+# Add new weather-related columns to the table (if they don't exist)
 
 conn = sqlite3.connect(filepath_db)
 cursor = conn.cursor()
+
 for column, col_type in columns.items():
-    sql_query = f"ALTER TABLE {table_name} ADD COLUMN {column} {col_type}"
-    print(f"query: {sql_query}")
+    query_add_column = f"ALTER TABLE {table_name} ADD COLUMN {column} {col_type}"
+
     try:
-        cursor.execute(sql_query)
+        cursor.execute(query_add_column)
     except sqlite3.OperationalError:
         print(f"operational error: {column} already exists")
         # Column already exists
 
-# Commit changes and close connection
+# Commit changes
 conn.commit()
-
-# conn = sqlite3.connect(filepath_db)
-# cursor = conn.cursor()
 
 # Fetch missing data from API
 cursor.execute("SELECT date FROM power_usage_vs_weather WHERE retrieval_date IS NULL OR retrieval_date = '' LIMIT ?", (API_CALL_LIMIT,))
