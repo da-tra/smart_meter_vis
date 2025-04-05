@@ -181,3 +181,4 @@ cython_debug/
 *.db
 api_key.txt
 scratchpad.*
+.DS_Store
