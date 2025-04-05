@@ -249,7 +249,7 @@ for row in rows:
            "precipitation",
            "wind_speed",
            "wind_direction",
-           "retrieval_date"
+           "retrieval_date",
            ]
 
 
@@ -290,12 +290,16 @@ for row in rows:
         api_calls_made += 1
     else:
         print(f"API call failed for {stored_date}: {response.status_code}")
-# Commti changes to database
+print("All weather data gathered. Waiting to commit do database")
+# Commit changes to database
 conn.commit()
 print("Changes committed to SQL database")
 # Close connection
 conn.close()
 
+
+# TODO calculate correlation between weather and usage
+# TODO plot (or show?) only the data with relevant correlation
 
 # Plot usage data vs weather data
 
