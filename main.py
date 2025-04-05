@@ -112,8 +112,16 @@ with open("api_key.txt", "r") as f:  # noqa: PTH123
 # Set longitude and latitude to Vienna, AT
 LAT, LON = 48.2083537, 16.3725042
 
-# Limit API costs by limiting the number API calls
-API_CALL_LIMIT = 9  # Change this number as needed
+# Define the number of days for which data is requested
+api_get_limit = 9  # Change this number as needed
+
+# Limit API costs by limiting the number API calls to the daily limit
+API_DAILY_LIMIT = 1000
+# Turn off cost protection by setting STAY_FREE to False
+STAY_FREE = True
+if STAY_FREE:
+    assert api_get_limit <= API_DAILY_LIMIT  # noqa: S101
+
 
 # Define new columns with their respective types. These are defined by the API response
 # For JSON schema see API documentation: https://openweathermap.org/api/one-call-3#hist_agr_parameter
@@ -150,19 +158,45 @@ for column, col_type in columns.items():
 # Commit changes
 conn.commit()
 
+# TODO change the following line. This is all kinds of wrong. Desired behaviour:
+# 1) Count number of rows with today's retrieval date. Must be lower than the free daily calls -> DAILY_CALL_LIMIT
+# 2) Define another call_limit for the purpose of fetching data, api_get_limit (must be lower than DAILY_CALL_LIMIT) 
+# 3) Select SQL row for current date. Check if data has been retrieved. If not, make API GET call.
+# 4) Store JSON data in SQL table
 # Fetch missing data from API
-cursor.execute("SELECT date FROM power_usage_vs_weather WHERE retrieval_date IS NULL OR retrieval_date = '' LIMIT ?", (API_CALL_LIMIT,))
+# Count how many API calls worth of data have been stored in the SQL table
+sql_count_days_calls = f"""SELECT 
+                COUNT (*) FROM {table_name} 
+                    WHERE retrieval_date NOT NULL 
+                    GROUP BY retrieval_date 
+                    ORDER BY retrieval_date
+                    """  # noqa: W291
+
+cursor.execute(sql_count_days_calls)
+row = cursor.fetchone()
+count_calls_day =row[-1]
+if count_calls_day > API_DAILY_LIMIT:
+    print("The number of free daily calls has been reached.\nIf you wish to proceed anyways, set STAY_FREE to False")
+
+api_calls_made = 0 + count_calls_day  # Track number of API calls
+
+## Get SQL rows without weather data
+sql_no_weather_data = f"SELECT date, retrieval_date FROM {table_name} WHERE retrieval_date IS NULL"
+cursor.execute(sql_no_weather_data)
+
+cursor.execute(sql_no_weather_data)
 rows = cursor.fetchall()
 
-api_calls_made = 0  # Track number of API calls
-
 for row in rows:
-    if api_calls_made >= API_CALL_LIMIT:
+    print(f"API calls made: {api_calls_made}")
+    print(f"API call daily limit: {API_DAILY_LIMIT}")
+
+    if api_calls_made >= api_get_limit:
         print("API call limit reached. Stopping further requests.")
         break
 
     stored_date = row[0]
-    print(f"Fetching data for {stored_date}...")
+    print(f"Requesting data for {stored_date}...")
 
     # API Call
     api_url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={stored_date}&appid={API_KEY}"
@@ -176,15 +210,15 @@ for row in rows:
             data["temperature"]["morning"],
             data["temperature"]["afternoon"],
             data["temperature"]["evening"],
-            data["temperature"]["night"]
-        ]
+            data["temperature"]["night"],
+            ]
         temp_median_no_minmax = median(temp_values_no_minmax)
 
         temp_values = [
             data["temperature"]["min"],
             data["temperature"]["max"],
-            *temp_values_no_minmax
-        ]
+            temp_values_no_minmax,
+            ]
         temp_median = median(temp_values)
 
         # Prepare update data
@@ -204,7 +238,7 @@ for row in rows:
                 data["temperature"]["evening"], data["temperature"]["night"],
                 data["humidity"]["afternoon"], data["precipitation"]["total"],
                 data["wind"]["max"]["speed"], data["wind"]["max"]["direction"],
-                retrieval_date, stored_date
+                retrieval_date, stored_date,
                 )
             )
 
