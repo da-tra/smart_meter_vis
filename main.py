@@ -158,13 +158,8 @@ for column, col_type in columns.items():
 # Commit changes
 conn.commit()
 
-# TODO change the following line. This is all kinds of wrong. Desired behaviour:
-# 1) Count number of rows with today's retrieval date. Must be lower than the free daily calls -> DAILY_CALL_LIMIT
-# 2) Define another call_limit for the purpose of fetching data, api_get_limit (must be lower than DAILY_CALL_LIMIT) 
-# 3) Select SQL row for current date. Check if data has been retrieved. If not, make API GET call.
-# 4) Store JSON data in SQL table
-# Fetch missing data from API
-# Count how many API calls worth of data have been stored in the SQL table
+
+# Request weather data for date entries in SQL table
 sql_count_days_calls = f"""SELECT 
                 COUNT (*) FROM {table_name} 
                     WHERE retrieval_date NOT NULL 
@@ -174,11 +169,12 @@ sql_count_days_calls = f"""SELECT
 
 cursor.execute(sql_count_days_calls)
 row = cursor.fetchone()
-count_calls_day =row[-1]
+print(row)
+count_calls_day = 0 if row == None else row[-1]
 if count_calls_day > API_DAILY_LIMIT:
     print("The number of free daily calls has been reached.\nIf you wish to proceed anyways, set STAY_FREE to False")
 
-api_calls_made = 0 + count_calls_day  # Track number of API calls
+api_calls_made = 0  # Track number of API calls
 
 ## Get SQL rows without weather data
 sql_no_weather_data = f"SELECT date, retrieval_date FROM {table_name} WHERE retrieval_date IS NULL"
@@ -188,11 +184,18 @@ cursor.execute(sql_no_weather_data)
 rows = cursor.fetchall()
 
 for row in rows:
-    print(f"API calls made: {api_calls_made}")
+    print(f"API calls made in this run: {api_calls_made}")
+    print(f"API calls made today: {count_calls_day + api_calls_made}")
+
     print(f"API call daily limit: {API_DAILY_LIMIT}")
 
+    # End fetching when API_DAILY_LIMIT is reached
+    if count_calls_day + api_calls_made >= API_DAILY_LIMIT:
+        print("Daily API call limit reached. Stopping further requests.")
+        break
+
+    # End fetching when api_get_limit is reached
     if api_calls_made >= api_get_limit:
-        print("API call limit reached. Stopping further requests.")
         break
 
     stored_date = row[0]
@@ -203,68 +206,126 @@ for row in rows:
     response = requests.get(api_url)
 
     if response.status_code == 200:
-        data = response.json()  # Parse JSON
+        response_json = response.json()  # Parse JSON
+        print(response_json)
+        response_dict = dict(response_json)
 
-        # Compute temperature medians
+        print(f"response type {type(response_dict)}")
+        print(response_dict)
+        # Caclulate temp median for row; without temp min & max, and one with min & max
         temp_values_no_minmax = [
-            data["temperature"]["morning"],
-            data["temperature"]["afternoon"],
-            data["temperature"]["evening"],
-            data["temperature"]["night"],
+            response_dict["temperature"]["morning"],
+            response_dict["temperature"]["afternoon"],
+            response_dict["temperature"]["evening"],
+            response_dict["temperature"]["night"],
             ]
         temp_median_no_minmax = median(temp_values_no_minmax)
 
         temp_values = [
-            data["temperature"]["min"],
-            data["temperature"]["max"],
-            temp_values_no_minmax,
+            response_dict["temperature"]["min"],
+            response_dict["temperature"]["max"],
             ]
+        temp_values += temp_values_no_minmax
         temp_median = median(temp_values)
 
-        # Prepare update data
+        response_dict["temperature"]["median__temp_no_min_max_k"] = temp_median_no_minmax
+        response_dict["temperature"]["median_temp_k"] = temp_median
+
+
+        # Get current date to store as retrieval date
         retrieval_date = datetime.today().strftime('%Y-%m-%d')
 
-        # **Step 3: Update database with API data**
-        cursor.execute("""
-            UPDATE power_usage_vs_weather
-            SET min_temp_k = ?, max_temp_k = ?, temp_median_no_minmax_k = ?, median_temp_k = ?, 
-                morning_temp_k = ?, afternoon_temp_k = ?, evening_temp_k = ?, night_temp_k = ?, 
-                humidity = ?, precipitation = ?, wind_speed = ?, wind_direction = ?, retrieval_date = ?
-            WHERE date = ?
-            """, (
-                data["temperature"]["min"], data["temperature"]["max"],
-                temp_median_no_minmax, temp_median,
-                data["temperature"]["morning"], data["temperature"]["afternoon"],
-                data["temperature"]["evening"], data["temperature"]["night"],
-                data["humidity"]["afternoon"], data["precipitation"]["total"],
-                data["wind"]["max"]["speed"], data["wind"]["max"]["direction"],
-                retrieval_date, stored_date,
-                )
-            )
+        # Update database with API data
+        columns = [
+           "min_temp_k",
+           "max_temp_k",
+           "median_temp_no_minmax_k",
+           "median_temp_k",
+           "morning_temp_k",
+           "afternoon_temp_k",
+           "evening_temp_k",
+           "night_temp_k",
+           "humidity",
+           "precipitation",
+           "wind_speed",
+           "wind_direction",
+           "retrieval_date"
+           ]
 
-        conn.commit()
-        print(f"Updated: {stored_date}")
+
+        # Build the SQL query string dynamically
+        columns_string = ", ".join(f"{col} = ?" for col in columns)
+
+        sql_update_query = f"""
+                            UPDATE {table_name}
+                                SET {columns_string}
+                                WHERE date = ?
+                            """
+
+        # Prepare data for executemany (list of tuples)
+        data_to_update = [
+            (
+                response_dict["temperature"]["min"],
+                response_dict["temperature"]["max"],
+                temp_median_no_minmax,
+                temp_median,
+                response_dict["temperature"]["morning"],
+                response_dict["temperature"]["afternoon"],
+                response_dict["temperature"]["evening"],
+                response_dict["temperature"]["night"],
+                response_dict["humidity"]["afternoon"],
+                response_dict["precipitation"]["total"],
+                response_dict["wind"]["max"]["speed"],
+                response_dict["wind"]["max"]["direction"],
+                retrieval_date,
+                stored_date,  # `WHERE date = ?` goes last
+                )
+            for value in response_dict
+        ]
+
+        # Execute all updates at once
+        cursor.executemany(sql_update_query, data_to_update)
+        print(f"Updated data for: {stored_date}")
+        print("- - - ")
         api_calls_made += 1
     else:
         print(f"API call failed for {stored_date}: {response.status_code}")
-
+# Commti changes to database
+conn.commit()
+print("Changes committed to SQL database")
 # Close connection
 conn.close()
 
+
 # Plot usage data vs weather data
 
-# Connect to the database
+# Connect to SQL database
 filename_db = "power_usage_vs_weather.db"
 filepath_db = f"./db/{filename_db}"
 # Create database connection
 conn = sqlite3.connect(filepath_db)
 cursor = conn.cursor()
 
-# Fetch data from the table
-cursor.execute("""SELECT date, min_temp_k, max_temp_k, median_temp_k, morning_temp_k, 
-                       afternoon_temp_k, evening_temp_k, night_temp_k, humidity, 
-                       precipitation, wind_speed, wind_direction, usage_kwh 
-                FROM power_usage_vs_weather ORDER BY date""")
+# Define and fetch data for visualising from the SQL table
+columns = ["date",
+           "min_temp_k",
+           "max_temp_k",
+           "median_temp_k",
+           "morning_temp_k",
+           "afternoon_temp_k",
+           "evening_temp_k",
+           "night_temp_k",
+           "humidity",
+           "precipitation",
+           "wind_speed",
+           "wind_direction",
+           "usage_kwh",
+           ]
+
+columns_string = ", ".join(columns)
+sql_data_for_vis = f"""SELECT {columns_string} FROM {table_name}
+                        ORDER BY date"""
+cursor.execute(sql_data_for_vis)
 
 # Separate data into lists
 dates = []
