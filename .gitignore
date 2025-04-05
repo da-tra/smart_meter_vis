@@ -176,6 +176,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypircTAGESWERTE-20220325-bis-20250324.csv
+
+# User
 *.db
 api_key.txt
-scratchpad.py
+scratchpad.*
