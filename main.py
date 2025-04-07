@@ -231,12 +231,12 @@ for row in rows:
         response_dict["temperature"]["median__temp_no_min_max_k"] = temp_median_no_minmax
         response_dict["temperature"]["median_temp_k"] = temp_median
 
-
         # Get current date to store as retrieval date
         retrieval_date = datetime.today().strftime('%Y-%m-%d')
 
+
         # Update database with API data
-        columns = [
+        columns_weather_data = [
            "min_temp_k",
            "max_temp_k",
            "median_temp_no_minmax_k",
@@ -254,15 +254,15 @@ for row in rows:
 
 
         # Build the SQL query string dynamically
-        columns_string = ", ".join(f"{col} = ?" for col in columns)
+        columns_weather_string = ", ".join(f"{col} = ?" for col in columns_weather_data)
 
         sql_update_query = f"""
                             UPDATE {table_name}
-                                SET {columns_string}
+                                SET {columns_weather_string}
                                 WHERE date = ?
                             """
 
-        # Prepare data for executemany (list of tuples)
+        # Prepare data (list of tuples) for sqlite3 executemany
         data_to_update = [
             (
                 response_dict["temperature"]["min"],
@@ -287,6 +287,7 @@ for row in rows:
         cursor.executemany(sql_update_query, data_to_update)
         print(f"Updated data for: {stored_date}")
         print("- - - ")
+        # Increment counter of api calls made in this run
         api_calls_made += 1
     else:
         print(f"API call failed for {stored_date}: {response.status_code}")

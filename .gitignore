@@ -183,3 +183,5 @@ api_key.txt
 scratchpad.*
 .DS_Store
 smart_meter_vis_ideas.txt
+scratchpad*
+*.json
