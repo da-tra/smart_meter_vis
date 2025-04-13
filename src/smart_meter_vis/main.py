@@ -9,13 +9,17 @@ from statistics import median
 
 import plotly.graph_objects as go
 import requests
+from importlib.resources import files
+import os
 
-from utils import utils
+
 
 # Read CSV with usage data (generated via customer profile at https://smartmeter-web.wienernetze.at/ ) 
 # load the data with the module csv
 
 # TODO generalise this section to include any .csv file in the specified folder
+
+
 filename_csv = "TAGESWERTE-20220325-bis-20250324.csv"
 filepath_csv = f"./smart_meter_data/{filename_csv}"
 with open(filepath_csv, mode="r", encoding="utf-8") as f:  # noqa: PTH123

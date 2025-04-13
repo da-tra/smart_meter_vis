@@ -1,3 +1,6 @@
+import os
+from importlib.resources import files
+
 def build_columns_string(columns_dict):
     """Return a string for specifying SQL columns and their types.
 
@@ -15,3 +18,10 @@ def build_columns_string(columns_dict):
         observation REAL
     """
     return ",\n    ".join(f"{key} {value}" for key, value in columns_dict.items())
+
+def find_csv_filenames(
+        path_to_dir: str,
+        suffix: str,
+        ) -> list[str]:
+    filenames = os.listdir(path_to_dir)
+    return [filename for filename in filenames if filename.endswith(suffix)]
