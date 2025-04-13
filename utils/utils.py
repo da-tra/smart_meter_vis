@@ -15,8 +15,3 @@ def build_columns_string(columns_dict):
         observation REAL
     """
     return ",\n    ".join(f"{key} {value}" for key, value in columns_dict.items())
-print(build_columns_string({
-        "id": "INTEGER PRIMARY KEY",
-        "date": "TEXT UNIQUE",
-        "usage_kwh": "REAL",
-        }))
