@@ -18,11 +18,23 @@ from smart_meter_vis.utils import utils
 # Read CSV with usage data (generated via customer profile at https://smartmeter-web.wienernetze.at/ ) 
 # load the data with the module csv
 
-# TODO generalise this section to include any .csv file in the specified folder
-csv_folder = files("smart_meter_vis.csv")
-csv_files = os.listdir(csv_folder)
+# Generate absolute file path for directory containing 
+# CSV files with smart meter data
+csv_folder = files("smart_meter_vis.meter_data")
 
-print(utils.find_csv_filenames(path_to_dir=csv_folder, suffix=".csv"))
+# For all csv files: generate absolute file path
+filepaths = utils.find_csv_filepaths(
+    path_to_dir=csv_folder,
+    )
+# print(filepaths)
+
+# For all filepaths to csv files: collect contained smart meter data in dictionary
+smart_meter_data = utils.load_csv_meter_data(
+    filepaths=filepaths,
+    )
+# pprint(smart_meter_data)
+
+
 
 
 filename_csv = "TAGESWERTE-20220325-bis-20250324.csv"
