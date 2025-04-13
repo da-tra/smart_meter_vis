@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 import requests
 from importlib.resources import files
 import os
+from smart_meter_vis.utils import utils
 
 
 
@@ -18,6 +19,10 @@ import os
 # load the data with the module csv
 
 # TODO generalise this section to include any .csv file in the specified folder
+csv_folder = files("smart_meter_vis.csv")
+csv_files = os.listdir(csv_folder)
+
+print(utils.find_csv_filenames(path_to_dir=csv_folder, suffix=".csv"))
 
 
 filename_csv = "TAGESWERTE-20220325-bis-20250324.csv"
