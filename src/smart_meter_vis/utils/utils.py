@@ -67,13 +67,13 @@ def load_csv_meter_data(filepaths: list[str]) -> dict:
 
     return smart_meter_dict
 
-def check_sql_for_value(folder_db, name_db, name_table, index, observation):
+def check_sql_for_value(folder_db, name_db, name_table, label_name, feature_name, label):
     filepath = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(filepath)
     cursor = conn.cursor()
 
-    query = f"SELECT {observation} FROM {name_table} WHERE {index} = ?"
-    cursor.execute(query, (observation))
+    query = f"SELECT {feature_name} FROM {name_table} WHERE {label_name} = ?"
+    cursor.execute(query, (label, ))
     row_sql = cursor.fetchone()
     if not row_sql:
         return False
@@ -100,37 +100,38 @@ def create_sql_table(folder_db, name_db, name_table, columns_name_type) -> None:
     conn.close
 
 
-def store_in_sql(path_to_dir,
-                 name_db,
-                 name_table,
-                 data:dict,
-                 ) -> None:
+def store_in_sql(
+        path_db: str,
+        name_db: str,
+        name_table: str,
+        data: dict,
+        column_names: dict[str, str | list[str]],
+        ) -> None:
     """Connect to SQLite3 file store data from dictionary.
     
     Stores usage data only if no data exists for that day, yet.
     """
     # Store all new values from data in SQL table
     # Connect to db
-    filepath = f"{path_to_dir}/{name_db}"
+    filepath = f"{path_db}/{name_db}"
     conn = sqlite3.connect(filepath)
     cursor = conn.cursor()
 
-    # Name keys from usage dictionary
-    all_dates = data.keys()
 
-    # Iterate over usage dictionary
-    for date in all_dates:
+    # Iterate over all dates and data points in usage dictionary
+    for date in data.keys():
         # Name values from usage dictionary
         usage = data[date]
 
+        # TODO make new_function that removes duplicate values from dict
         # Skip date if the SQL table alredy has data for it
         value_exists = check_sql_for_value(
             folder_db=filepath,
             name_db=name_db,
             name_table=name_table,
-            index=date,
-            observation=usage,
-            ):
+            label_name=date,
+            feature_name=usage,
+            )
             
         if value_exists:
             # If the data already exists: end this loop iteration early
@@ -142,8 +143,14 @@ def store_in_sql(path_to_dir,
             
 
         #   Write row to sql table
+        label = column_names["label"]
+        observations = column_names["observations"]
+        observation_names = ", ".join(observations)
+ 
+        
+        columns = ", ".join(label, observation_names)
         query = f"""
-                INSERT INTO {name_table} (date, usage_kwh)
+                INSERT INTO {name_table} ({columns})
                 VALUES (?, ?)
                 """  # noqa: S608
         cursor.execute(query, (date, usage))
