@@ -2,6 +2,7 @@ import os
 from importlib.resources import files
 import csv
 from datetime import datetime
+import sqlite3
 
 def build_columns_string(columns_dict):
     """Return a string for specifying SQL columns and their types.
@@ -21,17 +22,17 @@ def build_columns_string(columns_dict):
     """
     return ",\n    ".join(f"{key} {value}" for key, value in columns_dict.items())
 
-def find_csv_filepaths(path_to_dir: str) -> list[str]:
+def find_csv_filepaths(folder_csv: str) -> list[str]:
     # Get all filenames in directory
-    filenames = os.listdir(path_to_dir)
+    filenames = os.listdir(folder_csv)
     # Keep only CSV filenames
     suffix = ".csv"
     filenames = [filename for filename in filenames if filename.endswith(suffix)]
     # Get absolute paths
-    filepaths = [f"{path_to_dir}/{filename}" for filename in filenames]
+    filepaths = [f"{folder_csv}/{filename}" for filename in filenames]
     return filepaths
 
-def load_csv_meter_data(filepaths: list[str]):
+def load_csv_meter_data(filepaths: list[str]) -> dict:
     # Define dictionary to store data loaded from CSV 
     smart_meter_dict = {}
     # Process all present CSV files:
@@ -65,3 +66,89 @@ def load_csv_meter_data(filepaths: list[str]):
                 # print(date_csv, ": ", usage)
 
     return smart_meter_dict
+
+def check_sql_for_value(folder_db, name_db, name_table, index, observation):
+    filepath = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(filepath)
+    cursor = conn.cursor()
+
+    query = f"SELECT {observation} FROM {name_table} WHERE {index} = ?"
+    cursor.execute(query, (observation))
+    row_sql = cursor.fetchone()
+    if not row_sql:
+        return False
+    elif row_sql:
+        return True
+
+def create_sql_table(folder_db, name_db, name_table, columns_name_type) -> None:
+    """Connect to SQLite3 file and CREATE TABLE IF NOT EXIST"""
+    filepath = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(filepath)
+    cursor = conn.cursor()
+
+    # Construct the SQL query for creating a table if it doesn't exist
+    columns_block = build_columns_string(columns_name_type)
+
+    query = f"""
+        CREATE TABLE IF NOT EXISTS {name_table} (
+            {columns_block}
+        )
+        """
+    # Execute the query and commit the results to the database
+    cursor.execute(query)
+    conn.commit()
+    conn.close
+
+
+def store_in_sql(path_to_dir,
+                 name_db,
+                 name_table,
+                 data:dict,
+                 ) -> None:
+    """Connect to SQLite3 file store data from dictionary.
+    
+    Stores usage data only if no data exists for that day, yet.
+    """
+    # Store all new values from data in SQL table
+    # Connect to db
+    filepath = f"{path_to_dir}/{name_db}"
+    conn = sqlite3.connect(filepath)
+    cursor = conn.cursor()
+
+    # Name keys from usage dictionary
+    all_dates = data.keys()
+
+    # Iterate over usage dictionary
+    for date in all_dates:
+        # Name values from usage dictionary
+        usage = data[date]
+
+        # Skip date if the SQL table alredy has data for it
+        value_exists = check_sql_for_value(
+            folder_db=filepath,
+            name_db=name_db,
+            name_table=name_table,
+            index=date,
+            observation=usage,
+            ):
+            
+        if value_exists:
+            # If the data already exists: end this loop iteration early
+            print(f"{usage} kWh on {date}: (Already in database)")
+            continue
+        else:
+             # If there is no content, add the new data
+            print(f"Adding usage data for {date} to {filepath}:{name_table}")
+            
+
+        #   Write row to sql table
+        query = f"""
+                INSERT INTO {name_table} (date, usage_kwh)
+                VALUES (?, ?)
+                """  # noqa: S608
+        cursor.execute(query, (date, usage))
+
+    conn.commit()
+    conn.close()
+
+
