@@ -59,7 +59,10 @@ utils.create_sql_table(
     name_table=table_name,
     columns_name_type=columns_usage,
     )
-# Check SQL for entries in electricity usage data
+
+# Prevent duplicates in SQL DB: check usage dict for entries already in SQL DB
+
+dict_only_new_usage_data = {}
 for key in smart_meter_data_dict:
     value = smart_meter_data_dict[key]
     already_stored = utils.check_sql_for_value(
@@ -68,22 +71,22 @@ for key in smart_meter_data_dict:
         name_table=table_name,
         label_name="date",
         feature_name="usage_kwh",
-        label=value,
+        label=key,
         )
-    if already_stored:
-        smart_meter_data_dict.pop(key)
+    if not already_stored:
+        dict_only_new_usage_data[key] = value
 
-pprint(smart_meter_data_dict)
+smart_meter_data_dict = dict_only_new_usage_data
 
-# # Write usage data to SQL table (only data that's not in the table yet)
-# utils.store_in_sql(
-#     path_db=sql_folder,
-#     name_db=filename_db,
-#     name_table=table_name,
-#     data=smart_meter_data_dict,
-#     column_names = {"label": "date",
-#                     "observations": ["usage_kwh"]},
-#     )
+# Write usage data from dict to SQL table
+utils.store_in_sql(
+    folder_db=sql_folder,
+    name_db=filename_db,
+    name_table=table_name,
+    data=smart_meter_data_dict,
+    column_names = {"label": "date",
+                    "observations": ["usage_kwh"]},
+    )
 
 # # This next section...
 # # - defines details for an API GET call to Openweathermap.org for daily weather data
