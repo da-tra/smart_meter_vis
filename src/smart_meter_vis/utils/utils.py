@@ -13,12 +13,12 @@ def build_columns_string(columns_dict):
         d = { 
             "id": "INTEGER PRIMARY KEY",
             "date": "TEXT UNIQUE",
-            "observation": "REAL",
+            "value": "REAL",
             }
     Example output:
         id INTEGER PRIMARY KEY,
         date TEXT UNIQUE,
-        observation REAL
+        value REAL
     """
     return ",\n    ".join(f"{key} {value}" for key, value in columns_dict.items())
 
@@ -75,6 +75,11 @@ def check_sql_for_value(
         feature_name: str,
         label: str,
         ) -> bool:
+    """Check if value in column feature_name exists and return bool
+    
+    If the value exists in the specified SQL table, return True. If the value is not
+    found, return False.
+    """
     filepath = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(filepath)
     cursor = conn.cursor()
@@ -86,9 +91,29 @@ def check_sql_for_value(
         # print(f"{label_name} {label}: no entry for field '{feature_name}'")
         return False
     elif row_sql:
-        # If the data already exists: end this loop iteration early
         print(f"{feature_name} kWh on {label}: (Already in database)")
         return True
+
+def sql_count_value_in_column(
+        folder_db: str,
+        name_db: str,
+        name_table: str,
+        count_value: str,
+        column_name: str,
+        ) -> int | None:
+    filepath = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(filepath)
+    cursor = conn.cursor()
+
+    query = f"""SELECT COUNT (*) FROM {name_table}
+                    WHERE {column_name} = ?
+                    GROUP BY {column_name} 
+                    ORDER BY {column_name}"""
+    cursor.execute(query, (count_value, ))
+    row = cursor.fetchone()
+    if row == None:
+        return 0
+    return row[0] # fetch row content without 
 
 def create_sql_table(folder_db, name_db, name_table, columns_name_type) -> None:
     """Connect to SQLite3 file and CREATE TABLE IF NOT EXIST"""
@@ -100,14 +125,45 @@ def create_sql_table(folder_db, name_db, name_table, columns_name_type) -> None:
     columns_block = build_columns_string(columns_name_type)
 
     query = f"""
-        CREATE TABLE IF NOT EXISTS {name_table} (
-            {columns_block}
-        )
-        """
+            CREATE TABLE IF NOT EXISTS {name_table} (
+                {columns_block}
+            )
+            """
     # Execute the query and commit the results to the database
     cursor.execute(query)
     conn.commit()
     conn.close
+
+def add_new_columns(
+        folder_db: str,
+        name_db: str,
+        name_table: str,
+        columns: dict[str],
+        ):
+    """Add new columns to an SQL table.
+    
+    Specify the column names and types in a dictionary as follows:
+        d = {
+            "first_column_name": "FIRST COLUMN TYPE",
+            "second_column_type": "SECOND COLUMN TYPE",
+            }
+    """
+    filepath = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(filepath)
+    cursor = conn.cursor()
+
+    for column, col_type in columns.items():
+        query_add_column = f"ALTER TABLE {name_table} ADD COLUMN {column} {col_type}"
+
+        try:
+            cursor.execute(query_add_column)
+        except sqlite3.OperationalError:
+            # Column already exists
+            # print(f"operational error: {column} already exists")
+            pass
+
+    # Commit changes
+    conn.commit()
 
 
 def store_in_sql(
@@ -117,9 +173,14 @@ def store_in_sql(
         data: dict,
         column_names: dict[str, str | list[str]],
         ) -> None:
-    """Connect to SQLite3 file store data from dictionary.
+    """Connect to SQLite3 file and store data from dictionary.
     
-    Stores usage data only if no data exists for that day, yet.
+    Stores observation data only if no data exists for that observation, yet.
+    The column_names are to be provided as a dictionary.
+    Example: 
+    column_names = {'label': 'date',
+                    'observations': ['usage_kwh']},
+
     """
     # Store all new values from data in SQL table
     # Connect to db

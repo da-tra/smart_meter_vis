@@ -37,6 +37,9 @@ smart_meter_data_dict = utils.load_csv_meter_data(
     )
 # pprint(smart_meter_data)
 
+##################################################
+# Storing electricity usage data in SQL database #
+##################################################
 
 # Store usage data in an SQL table
 # Generate absolute file path for directory containing SQL database
@@ -88,70 +91,68 @@ utils.store_in_sql(
                     "observations": ["usage_kwh"]},
     )
 
-# # This next section...
-# # - defines details for an API GET call to Openweathermap.org for daily weather data
-# # - expands the SQL table by adding new columns to accommodate data received via API
+###############################################
+# Extend SQL database to receive weather data #
+###############################################
 
-# # API Details: Get API key for weather app
-# with open("api_key.txt", "r") as f:  # noqa: PTH123
-#     API_KEY = f.read().strip()
-# # Set longitude and latitude to Vienna, AT
-# LAT, LON = 48.2083537, 16.3725042
+# Define new columns with their respective types. These are defined by the API response
+# For JSON schema see API documentation: https://openweathermap.org/api/one-call-3#hist_agr_parameter
+columns_weather_data = {
+    "min_temp_k": "REAL",
+    "max_temp_k": "REAL",
+    "temp_median_no_minmax_k": "REAL",
+    "median_temp_k": "REAL",
+    "morning_temp_k": "REAL",
+    "afternoon_temp_k": "REAL",
+    "evening_temp_k": "REAL",
+    "night_temp_k": "REAL",
+    "humidity": "REAL",
+    "precipitation": "REAL",
+    "wind_speed": "REAL",
+    "wind_direction": "REAL",
+    "retrieval_date": "TEXT",
+    }
 
-# # Define the number of days for which data is requested
-# api_get_limit = 9  # Change this number as needed
+# Add new weather-related columns to the table (if they don't exist)
 
-# # Limit API costs by limiting the number API calls to the daily limit
-# API_DAILY_LIMIT = 1000
-# # Turn off cost protection by setting STAY_FREE to False
-# STAY_FREE = True
-# if STAY_FREE:
-#     assert api_get_limit <= API_DAILY_LIMIT  # noqa: S101
+utils.add_new_columns(
+    folder_db=sql_folder,
+    name_db=filename_db,
+    name_table=table_name,
+    columns=columns_weather_data,
+    )
 
-
-# # Define new columns with their respective types. These are defined by the API response
-# # For JSON schema see API documentation: https://openweathermap.org/api/one-call-3#hist_agr_parameter
-# columns = {
-#     "min_temp_k": "REAL",
-#     "max_temp_k": "REAL",
-#     "temp_median_no_minmax_k": "REAL",
-#     "median_temp_k": "REAL",
-#     "morning_temp_k": "REAL",
-#     "afternoon_temp_k": "REAL",
-#     "evening_temp_k": "REAL",
-#     "night_temp_k": "REAL",
-#     "humidity": "REAL",
-#     "precipitation": "REAL",
-#     "wind_speed": "REAL",
-#     "wind_direction": "REAL",
-#     "retrieval_date": "TEXT",
-#     }
-
-# # Add new weather-related columns to the table (if they don't exist)
-
-# conn = sqlite3.connect(filepath_db)
-# cursor = conn.cursor()
-
-# for column, col_type in columns.items():
-#     query_add_column = f"ALTER TABLE {table_name} ADD COLUMN {column} {col_type}"
-
-#     try:
-#         cursor.execute(query_add_column)
-#     except sqlite3.OperationalError:
-#         print(f"operational error: {column} already exists")
-#         # Column already exists
-
-# # Commit changes
-# conn.commit()
+#################################
+# Retrieve weather data via API #
+#################################
 
 
-# # Request weather data for date entries in SQL table
-# sql_count_days_calls = f"""SELECT 
-#                 COUNT (*) FROM {table_name} 
-#                     WHERE retrieval_date NOT NULL 
-#                     GROUP BY retrieval_date 
-#                     ORDER BY retrieval_date
-#                     """  # noqa: W291
+# API Details: Get API key for weather app.
+# The API key is to be stored at top level, i.e. smarter_meter_vis/api_key.txt
+with open("api_key.txt", "r") as f:  # noqa: PTH123
+    API_KEY = f.read().strip()
+
+# Set longitude and latitude to Vienna, AT
+LAT, LON = 48.2083537, 16.3725042
+
+# Define the number of days for which data is requested
+api_get_limit = 9  # Change this number as needed
+
+# Limit API costs by limiting the number API calls to the daily limit
+API_DAILY_LIMIT = 1000
+# Turn off cost protection by setting STAY_FREE to False
+limit_costs = True
+if limit_costs:
+    assert api_get_limit <= API_DAILY_LIMIT  # noqa: S101
+
+api_call_count_today = utils.sql_count_value_in_column(
+    folder_db=sql_folder,
+    name_db=filename_db,
+    name_table=table_name,
+    count_value=datetime.today().strftime("%Y-%m-%d"),
+    column_name="retrieval_date"
+    )
+print(api_call_count_today)
 
 # cursor.execute(sql_count_days_calls)
 # row = cursor.fetchone()
@@ -284,6 +285,9 @@ utils.store_in_sql(
 # # Close connection
 # conn.close()
 
+###################################
+# Store weather data in SQL table #
+###################################
 
 # # TODO calculate correlation between weather and usage
 # # TODO plot (or show?) only the data with relevant correlation
