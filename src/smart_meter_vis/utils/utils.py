@@ -94,6 +94,24 @@ def check_sql_for_value(
         print(f"{feature_name} kWh on {label}: (Already in database)")
         return True
 
+def sql_get_column_as_list(
+        folder_db: str,
+        name_db: str,
+        name_table: str,
+        column_name: str,
+        ) -> list[str | int | float]:
+    filepath = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(filepath)
+    cursor = conn.cursor()
+
+    query = f"SELECT {column_name} FROM {name_table}"
+    cursor.execute(query)
+    result = cursor.fetchall()
+    rows_as_list = [row[0] for row in result]
+    # for row in rows:
+    #     print(row)
+    return rows_as_list
+
 def sql_count_value_in_column(
         folder_db: str,
         name_db: str,
@@ -184,8 +202,8 @@ def store_in_sql(
     """
     # Store all new values from data in SQL table
     # Connect to db
-    filepath = f"{folder_db}/{name_db}"
-    conn = sqlite3.connect(filepath)
+    path_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_db)
     cursor = conn.cursor()
 
 
@@ -206,7 +224,7 @@ def store_in_sql(
             
         if not value_exists:
             # If there is no content, add the new data
-            print(f"Adding usage data for {date} to {filepath}:{name_table}")
+            print(f"Adding usage data for {date} to {name_db}: {name_table}")
             
 
         #   Write row to sql table
@@ -225,4 +243,13 @@ def store_in_sql(
     conn.commit()
     conn.close()
 
+def user_choice_api_call():
+    print("The next API request to OpenWeatherMap will exceed the free tier.")
+    print("To continue with the request, press ENTER.")
+    print("Press any other key to abort.")
+    choice = input()
+    if choice != "":
+        return False
+    elif choice == "":
+        return True
 

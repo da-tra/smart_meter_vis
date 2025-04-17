@@ -47,7 +47,7 @@ sql_folder = files("smart_meter_vis.db")
 # Define name of database file
 filename_db = "vienna_weather_and_electricity.db"
 # Define table name
-table_name = "electricity"
+table_name = "weather_and_usage"
 # Define the column names and their types in a dictionary ("column": "TYPE")
 columns_usage = {
     "id": "INTEGER PRIMARY KEY",
@@ -98,14 +98,14 @@ utils.store_in_sql(
 # Define new columns with their respective types. These are defined by the API response
 # For JSON schema see API documentation: https://openweathermap.org/api/one-call-3#hist_agr_parameter
 columns_weather_data = {
-    "min_temp_k": "REAL",
-    "max_temp_k": "REAL",
-    "temp_median_no_minmax_k": "REAL",
-    "median_temp_k": "REAL",
-    "morning_temp_k": "REAL",
-    "afternoon_temp_k": "REAL",
-    "evening_temp_k": "REAL",
-    "night_temp_k": "REAL",
+    "temp_min": "REAL",
+    "temp_max": "REAL",
+    "temp_median_no_minmax": "REAL",
+    "temp_median": "REAL",
+    "temp_morning": "REAL",
+    "temp_afternoon": "REAL",
+    "temp_evening": "REAL",
+    "temp_night": "REAL",
     "humidity": "REAL",
     "precipitation": "REAL",
     "wind_speed": "REAL",
@@ -126,8 +126,9 @@ utils.add_new_columns(
 # Retrieve weather data via API #
 #################################
 
+##### Parameters for API call to get weather data #####
 
-# API Details: Get API key for weather app.
+# Get API key for weather app.
 # The API key is to be stored at top level, i.e. smarter_meter_vis/api_key.txt
 with open("api_key.txt", "r") as f:  # noqa: PTH123
     API_KEY = f.read().strip()
@@ -135,12 +136,14 @@ with open("api_key.txt", "r") as f:  # noqa: PTH123
 # Set longitude and latitude to Vienna, AT
 LAT, LON = 48.2083537, 16.3725042
 
+# TODO remove this feature
 # Define the number of days for which data is requested
 api_get_limit = 9  # Change this number as needed
 
-# Limit API costs by limiting the number API calls to the daily limit
+# Limit number API calls per day to limit API costs
 API_DAILY_LIMIT = 1000
-# Turn off cost protection by setting STAY_FREE to False
+
+# Turn off cost protection by setting limit_costs to False
 limit_costs = True
 if limit_costs:
     assert api_get_limit <= API_DAILY_LIMIT  # noqa: S101
@@ -152,14 +155,10 @@ api_call_count_today = utils.sql_count_value_in_column(
     count_value=datetime.today().strftime("%Y-%m-%d"),
     column_name="retrieval_date"
     )
-print(api_call_count_today)
 
-# cursor.execute(sql_count_days_calls)
-# row = cursor.fetchone()
-# print(row)
-# count_calls_day = 0 if row == None else row[-1]
-# if count_calls_day > API_DAILY_LIMIT:
-#     print("The number of free daily calls has been reached.\nIf you wish to proceed anyways, set STAY_FREE to False")
+if api_call_count_today + api_get_limit > API_DAILY_LIMIT:
+    if not utils.user_choice_api_call:
+        break
 
 # api_calls_made = 0  # Track number of API calls
 
@@ -216,7 +215,7 @@ print(api_call_count_today)
 #         temp_median = median(temp_values)
 
 #         response_dict["temperature"]["median__temp_no_min_max_k"] = temp_median_no_minmax
-#         response_dict["temperature"]["median_temp_k"] = temp_median
+#         response_dict["temperature"]["median_temp"] = temp_median
 
 #         # Get current date to store as retrieval date
 #         retrieval_date = datetime.today().strftime('%Y-%m-%d')
@@ -224,14 +223,14 @@ print(api_call_count_today)
 
 #         # Update database with API data
 #         columns_weather_data = [
-#            "min_temp_k",
-#            "max_temp_k",
-#            "median_temp_no_minmax_k",
-#            "median_temp_k",
-#            "morning_temp_k",
-#            "afternoon_temp_k",
-#            "evening_temp_k",
-#            "night_temp_k",
+#            "min_temp",
+#            "max_temp",
+#            "median_temp_no_minmax",
+#            "median_temp",
+#            "morning_temp",
+#            "afternoon_temp",
+#            "evening_temp",
+#            "night_temp",
 #            "humidity",
 #            "precipitation",
 #            "wind_speed",
@@ -303,13 +302,13 @@ print(api_call_count_today)
 
 # # Define and fetch data for visualising from the SQL table
 # columns = ["date",
-#            "min_temp_k",
-#            "max_temp_k",
-#            "median_temp_k",
-#            "morning_temp_k",
-#            "afternoon_temp_k",
-#            "evening_temp_k",
-#            "night_temp_k",
+#            "min_temp",
+#            "max_temp",
+#            "median_temp",
+#            "morning_temp",
+#            "afternoon_temp",
+#            "evening_temp",
+#            "night_temp",
 #            "humidity",
 #            "precipitation",
 #            "wind_speed",
