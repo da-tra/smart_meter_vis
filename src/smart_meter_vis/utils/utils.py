@@ -337,6 +337,37 @@ def add_new_columns(
     conn.commit()
     conn.close()
 
+def sql_insert(
+        folder_db: str,
+        name_db: str,
+        name_table: str,
+        data: dict,
+        ) -> None:
+    """
+    Insert values (from dictionary) into columns (from dictionary)
+    column_one, column_two
+    data =  {
+            column_name_one: value_one,
+            column_name_two: value_two,
+            }
+    
+    INSERT INTO table (column_one, column_two) VALUES (?, ?)
+    """
+    path_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_db)
+    cursor = conn.cursor()
+
+    values = tuple(data.values())
+    column_names_str = ", ".join([key for key in data.keys()])
+    placeholder_str = ", ".join(["?" for _ in range(len(data))])
+
+    query = f"INSERT INTO {name_table} ({column_names_str}) VALUES ({placeholder_str})"
+    print(f"{query}{values}")
+    cursor.execute(query, values) 
+    conn.commit()
+
+
+
 
 def store_in_sql(
         folder_db: str,
@@ -351,7 +382,7 @@ def store_in_sql(
     The column_names are to be provided as a dictionary.
     Example: 
     column_names = {'label': 'date',
-                    'features': ['feature_one', 'feature_two]},
+                    'observations': ['usage_kwh']},
 
     """
     # Store all new values from data in SQL table
@@ -362,42 +393,37 @@ def store_in_sql(
 
 
     # Iterate over all dates and data points in usage dictionary
-    for label, data_for_sql_row in data.items():
+    for date in data.keys():
         # Name values from usage dictionary
-        # TODO write a simpler function for this loop, and then a different one that calls it.
-        for feature_name in data_for_sql_row.keys():
-            # Skip date if the SQL table alredy has data for it
-            # features_names_str = 
-            value_exists = check_sql_cell_not_null(
-                folder_db=folder_db,
-                name_db=name_db,
-                name_table=name_table,
-                label_name=column_names["label"],
-                feature_name=feature_name,
-                label=label,
-                )
-                
-            if not value_exists:
-                # If there is no content, add the new data
-                print(f"Adding '{feature_name}' data for '{label}' to '{name_db}': {name_table}")
-            
-            ## These lines are remnants from when there was no nested for loop
-            #   Write row to sql table
-            # label: str = column_names["label"]
-            # features_names_list: list = column_names["features"]
-            # features_names_str: str = ", ".join(features_names_list)
+        usage = data[date]
 
-            placeholder_str: str = ", ".join(f"?" for feature_name in features_names_list)
-            # value for rowdata.values() in rowdata for key in dict 
-            values_list = [data_for_sql_row[feature_name] for feature_name in data_for_sql_row.keys()]
-    
+        # Skip date if the SQL table alredy has data for it
+        value_exists = check_sql_cell_not_null(
+            folder_db=folder_db,
+            name_db=name_db,
+            name_table=name_table,
+            label_name="date",
+            feature_name="usage_kwh",
+            label=date,
+            )
             
-            columns = f"{label}, {features_names_str}"
-            query = f"""
-                    INSERT INTO {name_table} ({columns})
-                    VALUES ({placeholder_str})
-                    """  # noqa: S608
-            cursor.execute(query, (label, feature_name))
+        if not value_exists:
+            # If there is no content, add the new data
+            print(f"Adding usage data for {date} to {name_db}: {name_table}")
+            
+
+        #   Write row to sql table
+        label = column_names["label"]
+        observations = column_names["observations"]
+        observation_names = ", ".join(observations)
+ 
+        
+        columns = f"{label}, {observation_names}"
+        query = f"""
+                INSERT INTO {name_table} ({columns})
+                VALUES (?, ?)
+                """  # noqa: S608
+        cursor.execute(query, (date, usage))
 
     conn.commit()
     conn.close()

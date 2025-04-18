@@ -63,6 +63,7 @@ utils.create_sql_table(
     name_table=table_name,
     columns_name_type=columns_usage,
     )
+print(smart_meter_data_dict)
 
 # Prevent duplicates in SQL DB: check usage dict for entries already in SQL DB
 
@@ -80,8 +81,11 @@ for key in smart_meter_data_dict:
     if not already_stored:
         dict_only_new_usage_data[key] = value
 
+# Drop duplicate data
 smart_meter_data_dict = dict_only_new_usage_data
 
+
+# TODO: replace with -> TODO: fun for insertion from -> TODO: dict with req format
 # Write usage data from dict to SQL table
 utils.store_in_sql(
     folder_db=sql_folder,
@@ -157,8 +161,10 @@ api_call_count_today = utils.sql_count_value_in_column(
     column_name="retrieval_date"
     )
 
-# TODO fun to find NONE values
-
+# TODO: make sure the API limit isn't exceeded
+# TODO: for each date in the SQL table, update the table with 
+# TODO: function sql_update_where, but first
+# TODO: check that the column is NULL?
 # api_calls_made = 0  # Track number of API calls
 
 # ## Get SQL rows without weather data
