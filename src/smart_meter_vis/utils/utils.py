@@ -23,6 +23,14 @@ def build_columns_string(columns_dict):
     return ",\n    ".join(f"{key} {value}" for key, value in columns_dict.items())
 
 def find_csv_paths_abs(folder_csv: str) -> list[str]:
+    """Get a list of absolute paths for all CSV files in a directory.
+
+    Args:
+        folder_csv (str): The path to the directory containing the CSV files.
+
+    Returns:
+        list[str]: A list of absolute file paths for the CSV files.
+    """
     # Get all filenames in directory
     filenames = os.listdir(folder_csv)
     # Keep only CSV filenames
@@ -33,7 +41,20 @@ def find_csv_paths_abs(folder_csv: str) -> list[str]:
     return paths_abs_list
 
 def load_csv_meter_data(paths_abs_list: list[str]) -> dict[str, float]:
-    # Define dictionary to store data loaded from CSV 
+    """Load smart meter data from a list of CSV file paths.
+
+    Reads CSV files, extracts date and usage information, and stores it
+    in a dictionary. Dates are formatted to 'YYYY-MM-DD', and usage is
+    converted to a float. Skips rows with missing usage data.
+
+    Args:
+        paths_abs_list (list[str]): A list of absolute paths to the CSV files.
+
+    Returns:
+        dict[str, float]: A dictionary where keys are dates ('YYYY-MM-DD')
+                         and values are the corresponding usage (float).
+    """
+    # Define dictionary to store data loaded from CSV
     smart_meter_dict = {}
     # Process all present CSV files:
     for path_abs in paths_abs_list:
@@ -61,7 +82,7 @@ def load_csv_meter_data(paths_abs_list: list[str]) -> dict[str, float]:
                 # Otherwise: reformat usage data from 1,12 to 1.23
                 else:
                     usage = float(usage.replace(",", "."))
-                
+
                 smart_meter_dict[date_csv] = usage
                 # print(date_csv, ": ", usage)
 
@@ -75,10 +96,22 @@ def check_sql_cell_not_null(
         feature_name: str,
         label: str,
         ) -> bool:
-    """Check if value in column feature_name exists and return bool
-    
-    If the value exists in the specified SQL table, return True. If the value is not
-    found, return False.
+    """Check if a value exists in a specific cell of an SQL table.
+
+    Queries the SQL table to see if there is any entry in the specified
+    'feature_name' column for the given 'label' in the 'label_name' column.
+
+    Args:
+        folder_db (str): The path to the directory containing the database file.
+        name_db (str): The name of the SQLite database file.
+        name_table (str): The name of the table to query.
+        label_name (str): The name of the column containing the label.
+        feature_name (str): The name of the column to check for a non-null value.
+        label (str): The value of the label to search for.
+
+    Returns:
+        bool: True if a non-null value exists for the given label and feature,
+              False otherwise.
     """
     path_abs_db = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(path_abs_db)
@@ -93,8 +126,6 @@ def check_sql_cell_not_null(
     elif row_sql:
         # print(f"{feature_name} kWh on {label}: (Already in database)")
         return True
-    
-
 
 def sql_get_column_as_list(
         folder_db: str,
@@ -102,6 +133,19 @@ def sql_get_column_as_list(
         name_table: str,
         column_name: str,
         ) -> list[str | int | float]:
+    """Fetch all values from a specified column in an SQL table as a list.
+
+    Args:
+        folder_db (str): The path to the directory containing the database file.
+        name_db (str): The name of the SQLite database file.
+        name_table (str): The name of the table to query.
+        column_name (str): The name of the column to retrieve.
+
+    Returns:
+        list[str | int | float]: A list containing all the values from the specified column.
+                                 The data type of the elements in the list will match
+                                 the data type of the column in the database.
+    """
     path_abs_db = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
@@ -114,6 +158,7 @@ def sql_get_column_as_list(
     #     print(row)
     return rows_as_list
 
+
 def sql_filter_where(
         folder_db: str,
         name_db: str,
@@ -121,19 +166,24 @@ def sql_filter_where(
         filter_col_and_value: dict[str, str | int | float],
         columns_select_list: list[str],
         ) -> list:
-    """Filter an SQL table (WHERE), showing SELECTed columns.
-    
-    Specify the SELECT columns in a list.
-    For filtering with a WHERE clause, specify the columns and values in a dictionary.
+    """Filter an SQL table based on specified conditions in the WHERE clause
+    and select specific columns.
 
-    Example:
-        filter_col_and_value = {
-            "filter_col_one": "str / int / float one",
-            "filter_col_two": "str / int / float two",
-            }
-        output: [...] WHERE filter_col_one = "str / int / float one" AND filter_col_two = "str / int / float two"
-        """
-    
+    Args:
+        folder_db (str): The path to the directory containing the database file.
+        name_db (str): The name of the SQLite database file.
+        name_table (str): The name of the table to query.
+        filter_col_and_value (dict[str, str | int | float]): A dictionary where keys
+            are column names for filtering and values are the corresponding filter values.
+            Multiple key-value pairs will be combined with 'AND' in the WHERE clause.
+        columns_select_list (list[str]): A list of column names to select from the table.
+            If a string is provided, it will be treated as a single-element list.
+
+    Returns:
+        list: A list of tuples, where each tuple represents a row that matches the
+              filter conditions and contains the selected columns.
+    """
+
     path_abs_db = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
@@ -141,7 +191,7 @@ def sql_filter_where(
     if type(columns_select_list) is str:
         columns_select_list = [columns_select_list]
 
-    columns_where_str = ", ".join(f"{col_name} = ?" for col_name, value in filter_col_and_value.items())
+    columns_where_str = " AND ".join(f"{col_name} = ?" for col_name, value in filter_col_and_value.items())
     values_filter = tuple(filter_col_and_value.values())
 
     print(f"values filter: {values_filter}")
@@ -158,7 +208,24 @@ def sql_filter_is_none(
         columns_is_none: dict[str, str | int | float],
         columns_select_list: list[str],
         ) -> list:
-    """enter dict to filter results"""
+    """Filter an SQL table to find rows where specified columns are NULL
+    and select specific columns.
+
+    Args:
+        folder_db (str): The path to the directory containing the database file.
+        name_db (str): The name of the SQLite database file.
+        name_table (str): The name of the table to query.
+        columns_is_none (dict[str, str | int | float]): A dictionary where keys are
+            column names to check for NULL values. The values in the dictionary
+            are not used but are included for consistency with other filter functions.
+            Multiple column names will be combined with 'AND' in the WHERE clause.
+        columns_select_list (list[str]): A list of column names to select from the table.
+            If a string is provided, it will be treated as a single-element list.
+
+    Returns:
+        list: A list of tuples, where each tuple represents a row where the
+              specified columns are NULL and contains the selected columns.
+    """
     path_abs_db = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
@@ -166,7 +233,7 @@ def sql_filter_is_none(
     if type(columns_select_list) is str:
         columns_select_list = [columns_select_list]
 
-    columns_is_none_str = " AND ".join(f"{col_name} IS NULL" for col_name, value in columns_is_none.items())
+    columns_is_none_str = " AND ".join(f"{col_name} IS NULL" for col_name in columns_is_none.keys())
 
     query = f"SELECT {", ".join(columns_select_list)} FROM {name_table} WHERE {columns_is_none_str}"
     print(query)
@@ -181,22 +248,43 @@ def sql_count_value_in_column(
         count_value: str,
         column_name: str,
         ) -> int | None:
+    """Count the number of occurrences of a specific value in a given column of an SQL table.
+
+    Args:
+        folder_db (str): The path to the directory containing the database file.
+        name_db (str): The name of the SQLite database file.
+        name_table (str): The name of the table to query.
+        count_value (str): The value to count in the specified column.
+        column_name (str): The name of the column to search within.
+
+    Returns:
+        int | None: The number of times the `count_value` appears in the
+                    `column_name`. Returns 0 (instead of None) if the value is not found. Returns None if there's an issue executing the query.
+    """
     path_abs_db = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
 
     query = f"""SELECT COUNT (*) FROM {name_table}
                     WHERE {column_name} = ?
-                    GROUP BY {column_name} 
+                    GROUP BY {column_name}
                     ORDER BY {column_name}"""
     cursor.execute(query, (count_value, ))
     row = cursor.fetchone()
-    if row == None:
+    if row is None:
         return 0
-    return row[0] # fetch without row content  
+    return row[0] # fetch without row content
 
-def create_sql_table(folder_db, name_db, name_table, columns_name_type) -> None:
-    """Connect to SQLite3 file and CREATE TABLE IF NOT EXIST"""
+def create_sql_table(folder_db: str, name_db: str, name_table: str, columns_name_type: dict[str, str]) -> None:
+    """Connect to SQLite3 file and CREATE TABLE IF NOT EXISTS.
+
+    Args:
+        folder_db (str): The path to the directory where the database file will be located.
+        name_db (str): The name of the SQLite database file.
+        name_table (str): The name of the table to create.
+        columns_name_type (dict[str, str]): A dictionary defining the columns and their SQL data types,
+                                            e.g., {"column_name": "TEXT", "value": "REAL"}.
+    """
     path_abs_db = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
@@ -212,21 +300,24 @@ def create_sql_table(folder_db, name_db, name_table, columns_name_type) -> None:
     # Execute the query and commit the results to the database
     cursor.execute(query)
     conn.commit()
-    conn.close
+    conn.close()
 
 def add_new_columns(
         folder_db: str,
         name_db: str,
         name_table: str,
-        columns: dict[str],
-        ):
-    """Add new columns to an SQL table.
-    
-    Specify the column names and types in a dictionary as follows:
-        d = {
-            "first_column_name": "FIRST COLUMN TYPE",
-            "second_column_type": "SECOND COLUMN TYPE",
-            }
+        columns: dict[str, str],
+        ) -> None:
+    """Add new columns to an existing SQL table.
+
+    Args:
+        folder_db (str): The path to the directory containing the database file.
+        name_db (str): The name of the SQLite database file.
+        name_table (str): The name of the table to modify.
+        columns (dict[str, str]): A dictionary where keys are the new column names
+                                   and values are their corresponding SQL data types,
+                                   e.g., {"new_column": "INTEGER", "another_field": "TEXT"}.
+                                   If a column already exists, it will be skipped without error.
     """
     path_abs_db = f"{folder_db}/{name_db}"
     conn = sqlite3.connect(path_abs_db)
@@ -244,6 +335,7 @@ def add_new_columns(
 
     # Commit changes
     conn.commit()
+    conn.close()
 
 
 def store_in_sql(
