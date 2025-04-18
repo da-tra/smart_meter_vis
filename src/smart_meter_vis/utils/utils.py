@@ -22,22 +22,22 @@ def build_columns_string(columns_dict):
     """
     return ",\n    ".join(f"{key} {value}" for key, value in columns_dict.items())
 
-def find_csv_filepaths(folder_csv: str) -> list[str]:
+def find_csv_paths_abs(folder_csv: str) -> list[str]:
     # Get all filenames in directory
     filenames = os.listdir(folder_csv)
     # Keep only CSV filenames
     suffix = ".csv"
     filenames = [filename for filename in filenames if filename.endswith(suffix)]
     # Get absolute paths
-    filepaths = [f"{folder_csv}/{filename}" for filename in filenames]
-    return filepaths
+    paths_abs_list = [f"{folder_csv}/{filename}" for filename in filenames]
+    return paths_abs_list
 
-def load_csv_meter_data(filepaths: list[str]) -> dict[str, float]:
+def load_csv_meter_data(paths_abs_list: list[str]) -> dict[str, float]:
     # Define dictionary to store data loaded from CSV 
     smart_meter_dict = {}
     # Process all present CSV files:
-    for filepath in filepaths:
-        with open(filepath, mode="r", encoding="utf-8") as f:  # noqa: PTH123
+    for path_abs in paths_abs_list:
+        with open(path_abs, mode="r", encoding="utf-8") as f:  # noqa: PTH123
             # Read the individual CSV file
             usage_data = csv.reader(f, delimiter=";")
             # Load the header row and advance to next row
@@ -67,7 +67,7 @@ def load_csv_meter_data(filepaths: list[str]) -> dict[str, float]:
 
     return smart_meter_dict
 
-def check_sql_for_value(
+def check_sql_cell_not_null(
         folder_db: str,
         name_db: str,
         name_table: str,
@@ -80,8 +80,8 @@ def check_sql_for_value(
     If the value exists in the specified SQL table, return True. If the value is not
     found, return False.
     """
-    filepath = f"{folder_db}/{name_db}"
-    conn = sqlite3.connect(filepath)
+    path_abs_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
 
     query = f"SELECT {feature_name} FROM {name_table} WHERE {label_name} = ?"
@@ -91,8 +91,10 @@ def check_sql_for_value(
         # print(f"{label_name} {label}: no entry for field '{feature_name}'")
         return False
     elif row_sql:
-        print(f"{feature_name} kWh on {label}: (Already in database)")
+        # print(f"{feature_name} kWh on {label}: (Already in database)")
         return True
+    
+
 
 def sql_get_column_as_list(
         folder_db: str,
@@ -100,8 +102,8 @@ def sql_get_column_as_list(
         name_table: str,
         column_name: str,
         ) -> list[str | int | float]:
-    filepath = f"{folder_db}/{name_db}"
-    conn = sqlite3.connect(filepath)
+    path_abs_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
 
     query = f"SELECT {column_name} FROM {name_table}"
@@ -112,6 +114,66 @@ def sql_get_column_as_list(
     #     print(row)
     return rows_as_list
 
+def sql_filter_where(
+        folder_db: str,
+        name_db: str,
+        name_table: str,
+        filter_col_and_value: dict[str, str | int | float],
+        columns_select_list: list[str],
+        ) -> list:
+    """Filter an SQL table (WHERE), showing SELECTed columns.
+    
+    Specify the SELECT columns in a list.
+    For filtering with a WHERE clause, specify the columns and values in a dictionary.
+
+    Example:
+        filter_col_and_value = {
+            "filter_col_one": "str / int / float one",
+            "filter_col_two": "str / int / float two",
+            }
+        output: [...] WHERE filter_col_one = "str / int / float one" AND filter_col_two = "str / int / float two"
+        """
+    
+    path_abs_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_abs_db)
+    cursor = conn.cursor()
+
+    if type(columns_select_list) is str:
+        columns_select_list = [columns_select_list]
+
+    columns_where_str = ", ".join(f"{col_name} = ?" for col_name, value in filter_col_and_value.items())
+    values_filter = tuple(filter_col_and_value.values())
+
+    print(f"values filter: {values_filter}")
+    query = f"SELECT {", ".join(columns_select_list)} FROM {name_table} WHERE {columns_where_str}"
+    # print(query, values_filter)
+    cursor.execute(query, values_filter)
+    result = cursor.fetchall()
+    return result
+
+def sql_filter_is_none(
+        folder_db: str,
+        name_db: str,
+        name_table: str,
+        columns_is_none: dict[str, str | int | float],
+        columns_select_list: list[str],
+        ) -> list:
+    """enter dict to filter results"""
+    path_abs_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_abs_db)
+    cursor = conn.cursor()
+
+    if type(columns_select_list) is str:
+        columns_select_list = [columns_select_list]
+
+    columns_is_none_str = " AND ".join(f"{col_name} IS NULL" for col_name, value in columns_is_none.items())
+
+    query = f"SELECT {", ".join(columns_select_list)} FROM {name_table} WHERE {columns_is_none_str}"
+    print(query)
+    cursor.execute(query)
+    result = cursor.fetchall()
+    return result
+
 def sql_count_value_in_column(
         folder_db: str,
         name_db: str,
@@ -119,8 +181,8 @@ def sql_count_value_in_column(
         count_value: str,
         column_name: str,
         ) -> int | None:
-    filepath = f"{folder_db}/{name_db}"
-    conn = sqlite3.connect(filepath)
+    path_abs_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
 
     query = f"""SELECT COUNT (*) FROM {name_table}
@@ -131,12 +193,12 @@ def sql_count_value_in_column(
     row = cursor.fetchone()
     if row == None:
         return 0
-    return row[0] # fetch row content without 
+    return row[0] # fetch without row content  
 
 def create_sql_table(folder_db, name_db, name_table, columns_name_type) -> None:
     """Connect to SQLite3 file and CREATE TABLE IF NOT EXIST"""
-    filepath = f"{folder_db}/{name_db}"
-    conn = sqlite3.connect(filepath)
+    path_abs_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
 
     # Construct the SQL query for creating a table if it doesn't exist
@@ -166,8 +228,8 @@ def add_new_columns(
             "second_column_type": "SECOND COLUMN TYPE",
             }
     """
-    filepath = f"{folder_db}/{name_db}"
-    conn = sqlite3.connect(filepath)
+    path_abs_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_abs_db)
     cursor = conn.cursor()
 
     for column, col_type in columns.items():
@@ -213,7 +275,7 @@ def store_in_sql(
         usage = data[date]
 
         # Skip date if the SQL table alredy has data for it
-        value_exists = check_sql_for_value(
+        value_exists = check_sql_cell_not_null(
             folder_db=folder_db,
             name_db=name_db,
             name_table=name_table,
@@ -246,7 +308,7 @@ def store_in_sql(
 def user_choice_api_call():
     print("The next API request to OpenWeatherMap will exceed the free tier.")
     print("To continue with the request, press ENTER.")
-    print("Press any other key to abort.")
+    print("Press any other key to stop making API calls.")
     choice = input()
     if choice != "":
         return False

@@ -26,14 +26,15 @@ from smart_meter_vis.utils import utils
 csv_folder = files("smart_meter_vis.meter_data")
 
 # For all csv files: generate absolute file path
-filepaths = utils.find_csv_filepaths(
+filepaths = utils.find_csv_paths_abs(
     folder_csv=csv_folder,
     )
 # print(filepaths)
 
 # For all filepaths to csv files: collect contained smart meter data in dictionary
 smart_meter_data_dict = utils.load_csv_meter_data(
-    filepaths=filepaths,
+    paths_abs_list=filepaths,
+
     )
 # pprint(smart_meter_data)
 
@@ -68,7 +69,7 @@ utils.create_sql_table(
 dict_only_new_usage_data = {}
 for key in smart_meter_data_dict:
     value = smart_meter_data_dict[key]
-    already_stored = utils.check_sql_for_value(
+    already_stored = utils.check_sql_cell_not_null(
         folder_db=sql_folder,
         name_db=filename_db,
         name_table=table_name,
@@ -156,9 +157,7 @@ api_call_count_today = utils.sql_count_value_in_column(
     column_name="retrieval_date"
     )
 
-if api_call_count_today + api_get_limit > API_DAILY_LIMIT:
-    if not utils.user_choice_api_call:
-        break
+# TODO fun to find NONE values
 
 # api_calls_made = 0  # Track number of API calls
 
@@ -179,6 +178,10 @@ if api_call_count_today + api_get_limit > API_DAILY_LIMIT:
 #     if count_calls_day + api_calls_made >= API_DAILY_LIMIT:
 #         print("Daily API call limit reached. Stopping further requests.")
 #         break
+
+    # if api_call_count_today + api_get_limit > API_DAILY_LIMIT:
+    #     if not utils.user_choice_api_call:
+    #         break
 
 #     # End fetching when api_get_limit is reached
 #     if api_calls_made >= api_get_limit:
