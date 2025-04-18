@@ -364,6 +364,7 @@ def store_in_sql(
     # Iterate over all dates and data points in usage dictionary
     for label, data_for_sql_row in data.items():
         # Name values from usage dictionary
+        # TODO write a simpler function for this loop, and then a different one that calls it.
         for feature_name in data_for_sql_row.keys():
             # Skip date if the SQL table alredy has data for it
             # features_names_str = 
@@ -380,7 +381,7 @@ def store_in_sql(
                 # If there is no content, add the new data
                 print(f"Adding '{feature_name}' data for '{label}' to '{name_db}': {name_table}")
             
-
+            ## These lines are remnants from when there was no nested for loop
             #   Write row to sql table
             # label: str = column_names["label"]
             # features_names_list: list = column_names["features"]
