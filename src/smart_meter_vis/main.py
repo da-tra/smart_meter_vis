@@ -32,7 +32,7 @@ filepaths = utils.find_csv_paths_abs(
 # print(filepaths)
 
 # For all filepaths to csv files: collect contained smart meter data in dictionary
-smart_meter_data_dict = utils.load_csv_meter_data_depr(
+smart_meter_data_dict = utils.load_csv_meter_data(
     paths_abs_list=filepaths,
 
     )
