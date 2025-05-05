@@ -69,6 +69,9 @@ print(smart_meter_data_dict)
 
 dict_only_new_usage_data = {}
 for key in smart_meter_data_dict:
+    data = smart_meter_data_dict[key]
+    date = data["date"]
+    usage = data["usage_kwh"]
     value = smart_meter_data_dict[key]
     already_stored = utils.check_sql_cell_not_null(
         folder_db=sql_folder,
@@ -76,7 +79,7 @@ for key in smart_meter_data_dict:
         name_table=table_name,
         label_name="date",
         feature_name="usage_kwh",
-        label=key,
+        label=date,
         )
     if not already_stored:
         dict_only_new_usage_data[key] = value
