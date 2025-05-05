@@ -397,19 +397,7 @@ def store_in_sql(
         # Name values from usage dictionary
         usage = data[date]
 
-        # Skip date if the SQL table alredy has data for it
-        value_exists = check_sql_cell_not_null(
-            folder_db=folder_db,
-            name_db=name_db,
-            name_table=name_table,
-            label_name="date",
-            feature_name="usage_kwh",
-            label=date,
-            )
-            
-        if not value_exists:
-            # If there is no content, add the new data
-            print(f"Adding usage data for {date} to {name_db}: {name_table}")
+        print(f"Adding usage data for {date} to {name_db}: {name_table}")
             
 
         #   Write row to sql table
