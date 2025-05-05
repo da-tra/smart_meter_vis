@@ -98,16 +98,22 @@ for key in smart_meter_data_dict:
 smart_meter_data_dict = dict_only_new_usage_data
 
 
-# TODO: replace with -> TODO: fun for insertion from -> TODO: dict with req format
 # Write usage data from dict to SQL table
-utils.store_in_sql(
-    folder_db=sql_folder,
-    name_db=filename_db,
-    name_table=table_name,
-    data=smart_meter_data_dict,
-    column_names = {"label": "date",
-                    "observations": ["usage_kwh"]},
-    )
+
+for entry in smart_meter_data_dict.items():
+    # Unpack the key-value pair from the dictionary item.
+    # 'outer_dict' will be the key (which is the date string).
+    # 'inner_dict' will be the value (which is the dictionary containing 'date' and 'usage_kwh').
+    outer_dict, inner_dict = entry
+    # print(inner_dict)
+    # Use the utility function to insert a new row into the SQL table.
+    utils.sql_insert_row(
+        folder_db=sql_folder,  # The folder where the SQLite database is located
+        name_db=filename_db,  # The name of the SQLite database file
+        name_table=table_name,  # The name of the table to insert data into
+        data=inner_dict,  # The dictionary containing the column names as keys and the values to insert
+        )
+
 
 ###############################################
 # Extend SQL database to receive weather data #
