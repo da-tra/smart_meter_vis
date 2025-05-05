@@ -65,24 +65,34 @@ utils.create_sql_table(
     )
 print(smart_meter_data_dict)
 
+
 # Prevent duplicates in SQL DB: check usage dict for entries already in SQL DB
 
 dict_only_new_usage_data = {}
 for key in smart_meter_data_dict:
+    # Access the dictionary containing data for a specific date (the key)
     data = smart_meter_data_dict[key]
-    date = data["date"]
-    usage = data["usage_kwh"]
-    value = smart_meter_data_dict[key]
+    # Get the keys (column labels) from the inner dictionary
+    column_labels = data.keys()
+    # Get the values from the inner dictionary
+    values = data.values()
+    # Assuming the values are ordered as date and then usage, unpack them
+    date, usage = values
+    # Assuming the labels are ordered as 'date' and then 'usage_kwh', unpack them
+    label_name, feature_name = column_labels
+    # Check if data for this date and usage type is already stored in the SQL database
     already_stored = utils.check_sql_cell_not_null(
         folder_db=sql_folder,
         name_db=filename_db,
         name_table=table_name,
-        label_name="date",
-        feature_name="usage_kwh",
-        label=date,
+        label_name=label_name,  # The column name for the date
+        feature_name=feature_name,  # The column name for the usage value
+        label=date,  # The specific date to check
         )
+    # If the data is not already stored in the database
     if not already_stored:
-        dict_only_new_usage_data[key] = value
+        # Add this new usage data to the dictionary of only new data
+        dict_only_new_usage_data[key] = data
 
 # Drop duplicate data
 smart_meter_data_dict = dict_only_new_usage_data
