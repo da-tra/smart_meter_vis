@@ -365,7 +365,7 @@ def sql_insert_row(
     placeholder_str = ", ".join(["?" for _ in range(len(data))])
 
     query = f"INSERT INTO {name_table} ({column_names_str}) VALUES ({placeholder_str})"
-    print(f"{query}{values}")
+    # print(f"{query}{values}")
     cursor.execute(query, values) 
     conn.commit()
 
