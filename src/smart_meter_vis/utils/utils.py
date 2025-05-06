@@ -45,7 +45,7 @@ def load_csv_meter_data(paths_abs_list: list[str]) -> dict[str, dict[str, float 
 
     Reads CSV files, extracts date and usage information, and stores it
     in a dictionary. Dates are formatted to 'YYYY-MM-DD', and usage is
-    converted to a float. Skips rows with missing usage data.
+    converted to a float.
 
     Args:
         paths_abs_list (list[str]): A list of absolute paths to the CSV files.
@@ -74,15 +74,7 @@ def load_csv_meter_data(paths_abs_list: list[str]) -> dict[str, dict[str, float 
                 # Get power consumption from second column
                 usage = row[1]
 
-                # If the current row of the usage csv is empty:
-                #   i) report missing data
-                #   ii) leave loop, work to next row
-                if not usage:
-                    print(f"Skipped: {date_csv} (No data)")  # noqa: T201
-                    continue
-                # Otherwise: reformat usage data from 1,12 to 1.23
-                else:
-                    usage = float(usage.replace(",", "."))
+                usage = float(usage.replace(",", "."))
 
                 smart_meter_dict[date_csv] = {"date": date_csv, "usage_kwh": usage}
                 # print(date_csv, ": ", usage)
