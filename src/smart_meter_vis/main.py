@@ -158,48 +158,43 @@ utils.create_sql_table(
 #################################
 
 
-# ##### Parameters for API call to get weather data #####
+##### Parameters for API call to get weather data #####
 
-# # Get API key for weather app.
-# # The API key is to be stored at top level, i.e. smarter_meter_vis/api_key.txt
-# with open("api_key.txt", "r") as f:  # noqa: PTH123
-#     API_KEY = f.read().strip()
+# Get API key for weather app.
+# The API key is to be stored at top level, i.e. smarter_meter_vis/api_key.txt
+with open("api_key.txt", "r") as f:  # noqa: PTH123
+    API_KEY = f.read().strip()
 
-# # Set longitude and latitude to Vienna, AT
-# LAT, LON = 48.2083537, 16.3725042
+# Set longitude and latitude to Vienna, AT
+LAT, LON = 48.2083537, 16.3725042
 
-# # TODO remove this feature
-# # Define the number of days for which data is requested
-# api_get_limit = 9  # Change this number as needed
+# Limit number API calls per day to limit API costs
+API_DAILY_LIMIT = 1000
 
-# # Limit number API calls per day to limit API costs
-# API_DAILY_LIMIT = 1000
+# TODO remove this feature
+# Define the number of days for which data is requested
+api_get_limit = 9  # Change this number as needed
 
-# # Turn off cost protection by setting limit_costs to False
-# limit_costs = True
-# if limit_costs:
-#     assert api_get_limit <= API_DAILY_LIMIT  # noqa: S101
+# Turn off cost protection by setting limit_costs to False
+limit_costs = True
+if limit_costs:
+    assert api_get_limit <= API_DAILY_LIMIT  # noqa: S101
 
-# api_call_count_today = utils.sql_count_value_in_column(
-#     folder_db=sql_folder,
-#     name_db=filename_db,
-#     name_table=table_name_weather,
-#     count_value=datetime.today().strftime("%Y-%m-%d"),
-#     column_name="retrieval_date"
-#     )
+api_call_count_today = utils.sql_count_value_in_column(
+    folder_db=sql_folder,
+    name_db=filename_db,
+    name_table=table_name_weather,
+    count_value=datetime.today().strftime("%Y-%m-%d"),
+    column_name="retrieval_date"
+    )
 
 # # TODO: make sure the API limit isn't exceeded
 # # TODO: for each date in the SQL table, update the table with 
 # # TODO: function sql_update_where, but first
 # # TODO: check that the column is NULL?
-# api_calls_made = 0  # Track number of API calls
 
-# ## Get SQL rows without weather data
-# sql_no_weather_data = f"SELECT date, retrieval_date FROM {table_name_weather} WHERE retrieval_date IS NULL"
-# cursor.execute(sql_no_weather_data)
 
-# cursor.execute(sql_no_weather_data)
-# rows = cursor.fetchall()
+api_calls_made = 0  # Track number of API calls
 
 # for row in rows:
 #     print(f"API calls made in this run: {api_calls_made}")
