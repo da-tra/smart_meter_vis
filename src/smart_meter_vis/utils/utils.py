@@ -74,7 +74,14 @@ def load_csv_meter_data(paths_abs_list: list[str]) -> dict[str, dict[str, float 
                 # Get power consumption from second column
                 usage = row[1]
 
-                usage = float(usage.replace(",", "."))
+                # If the current row of the usage csv is empty:
+                #   i) report missing data
+                #   ii) leave loop, work to next row
+                if not usage:
+                    usage = None
+                # Otherwise: reformat usage data from 1,12 to 1.23
+                else:
+                    usage = float(usage.replace(",", "."))
 
                 smart_meter_dict[date_csv] = {"date": date_csv, "usage_kwh": usage}
                 # print(date_csv, ": ", usage)
