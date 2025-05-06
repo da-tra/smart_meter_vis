@@ -438,17 +438,51 @@ def make_ipa_call(
     for _ in range(calls_no):
         print(_)
 
-def sql_max_value(
+def sql_subtract_column_values(
         folder_db: str,
         name_db: str,
-        name_table: str,
-        column: str,
-        ) -> str | int | float:
-    path_db = f"{folder_db}/{name_db}"
-    conn = sqlite3.connect(path_db)
-    cursor = conn.cursor()
+        data: dict,
+        ) -> list[any]:
+        """
+        Find values in the reference table's column that are absent
+        in the incomplete table's column.
 
-    cursor.execute(f"SELECT MAX({column}) FROM {name_table}")
-    result = cursor.fetchone()[0]
+        Args:
+            folder_db: The folder containing the SQLite database.
+            name_db: The name of the SQLite database file.
+            data: A dictionary containing the table and column names for comparison.
+                  Expected keys: "reference_table", "incomplete_table",
+                                 "reference_column", "incomplete_column".
 
-    return result
+        Returns:
+            A list of distinct values from the reference table's column
+            that are not present in the incomplete table's column.
+        """
+        path_db = f"{folder_db}/{name_db}"
+        conn = sqlite3.connect(path_db)
+        cursor = conn.cursor()
+
+        reference_table_name = data.get("reference_table")
+        incomplete_table_name = data.get("incomplete_table")
+        reference_column = data.get("reference_column")
+        incomplete_column = data.get("incomplete_column")
+
+        if not all([reference_table_name, incomplete_table_name, reference_column, incomplete_column]):
+            conn.close()
+            raise ValueError("The 'data' dictionary is missing required keys.")
+
+        sql_query = f"""
+            SELECT DISTINCT rt.{reference_column}
+            FROM {reference_table_name} rt
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM {incomplete_table_name} it
+                WHERE it.{incomplete_column} = rt.{reference_column}
+            );
+            """
+
+        cursor.execute(sql_query)
+        results = [row[0] for row in cursor.fetchall()]
+
+        conn.close()
+        return results

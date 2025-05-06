@@ -223,8 +223,20 @@ elif LIMIT_COSTS == False:
             print("Stopping API calls to avoid charges.")
             make_api_calls = False
 
-# Determine dates for which the SQL database contains no data, yet.
+# Determine dates for which the SQL weather table contains no data, yet.
+comparison_data = {
+    "reference_table": "electricity",
+    "incomplete_table": "weather",
+    "reference_column": "usage_date",
+    "incomplete_column": "weather_date",
+    }
 
+missing_dates = utils.sql_subtract_column_values(
+    folder_db=sql_folder,
+    name_db=filename_db,
+    data=comparison_data,
+    )
+# print(missing_dates)
 
 
 # # Perform API calls if not forbidden
