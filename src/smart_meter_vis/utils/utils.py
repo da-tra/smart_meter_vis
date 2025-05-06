@@ -83,7 +83,7 @@ def load_csv_meter_data(paths_abs_list: list[str]) -> dict[str, dict[str, float 
                 else:
                     usage = float(usage.replace(",", "."))
 
-                smart_meter_dict[date_csv] = {"date": date_csv, "usage_kwh": usage}
+                smart_meter_dict[date_csv] = {"usage_date": date_csv, "usage_kwh": usage}
                 # print(date_csv, ": ", usage)
 
     return smart_meter_dict
@@ -437,3 +437,18 @@ def make_ipa_call(
         ):
     for _ in range(calls_no):
         print(_)
+
+def sql_max_value(
+        folder_db: str,
+        name_db: str,
+        name_table: str,
+        column: str,
+        ) -> str | int | float:
+    path_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_db)
+    cursor = conn.cursor()
+
+    cursor.execute(f"SELECT MAX({column}) FROM {name_table}")
+    result = cursor.fetchone()[0]
+
+    return result

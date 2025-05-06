@@ -52,7 +52,7 @@ table_name_electricity = "electricity"
 # Define the column names and their types in a dictionary ("column": "TYPE")
 columns_usage = {
     "id": "INTEGER PRIMARY KEY",
-    "date": "TEXT UNIQUE",
+    "usage_date": "TEXT UNIQUE",
     "usage_kwh": "REAL",
     }
 
@@ -102,7 +102,7 @@ smart_meter_data_dict = dict_only_new_usage_data
 for entry in smart_meter_data_dict.items():
     # Unpack the key-value pair from the dictionary item.
     # 'outer_dict' will be the key (which is the date string).
-    # 'inner_dict' will be the value (which is the dictionary containing 'date' and 'usage_kwh').
+    # 'inner_dict' will be the value (which is the dictionary containing 'usage_date' and 'usage_kwh').
     outer_dict, inner_dict = entry
     # print(inner_dict)
     # Use the utility function to insert a new row into the SQL table.
@@ -130,6 +130,7 @@ table_name_weather = "weather"
 # For JSON schema see API documentation: https://openweathermap.org/api/one-call-3#hist_agr_parameter
 columns_weather_data = {
     "id": "INTEGER PRIMARY KEY",
+    "weather_date": "TEXT",
     "temp_min": "REAL",
     "temp_max": "REAL",
     "temp_median_no_minmax": "REAL",
@@ -222,17 +223,21 @@ elif LIMIT_COSTS == False:
             print("Stopping API calls to avoid charges.")
             make_api_calls = False
 
-# Perform API calls if not forbidden
-if make_api_calls == True:
-    utils.make_ipa_call(
-        api_get_limit, 
-        api_params={
-            "lat": LAT,
-            "lon": LON,
-            "date": next_date,
-            "API key": API_KEY,
-            },
-        )
+# Determine dates for which the SQL database contains no data, yet.
+
+
+
+# # Perform API calls if not forbidden
+# if make_api_calls == True:
+#     utils.make_ipa_call(
+#         api_get_limit, 
+#         api_params={
+#             "lat": LAT,
+#             "lon": LON,
+#             "date": next_date,
+#             "API key": API_KEY,
+#             },
+#         )
 
 
 # # API Call
