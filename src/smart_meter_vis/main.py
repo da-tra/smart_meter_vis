@@ -176,17 +176,10 @@ API_DAILY_LIMIT = 1000
 api_get_limit = 9  # Change this number as needed
 
 # Turn off cost protection by setting limit_costs to False
-limit_costs = True
-if limit_costs:
+LIMIT_COSTS = True
+if LIMIT_COSTS:
     assert api_get_limit <= API_DAILY_LIMIT  # noqa: S101
 
-api_call_count_today = utils.sql_count_value_in_column(
-    folder_db=sql_folder,
-    name_db=filename_db,
-    name_table=table_name_weather,
-    count_value=datetime.today().strftime("%Y-%m-%d"),
-    column_name="retrieval_date"
-    )
 
 # # TODO: make sure the API limit isn't exceeded
 # # TODO: for each date in the SQL table, update the table with 
@@ -196,118 +189,142 @@ api_call_count_today = utils.sql_count_value_in_column(
 
 api_calls_made = 0  # Track number of API calls
 
+api_call_count_today = utils.sql_count_value_in_column(
+    folder_db=sql_folder,
+    name_db=filename_db,
+    name_table=table_name_weather,
+    count_value=datetime.today().strftime("%Y-%m-%d"),
+    column_name="retrieval_date"
+    )
+
 # for row in rows:
-#     print(f"API calls made in this run: {api_calls_made}")
-#     print(f"API calls made today: {count_calls_day + api_calls_made}")
+print(f"API calls made in this run: {api_calls_made}")
+print(f"API calls made today: {api_call_count_today + api_calls_made}")
 
-#     print(f"API call daily limit: {API_DAILY_LIMIT}")
+print(f"API call daily limit: {API_DAILY_LIMIT}")
 
-#     # End fetching when API_DAILY_LIMIT is reached
-#     if count_calls_day + api_calls_made >= API_DAILY_LIMIT:
-#         print("Daily API call limit reached. Stopping further requests.")
-#         break
+# Check if making API calls is allowed
+if LIMIT_COSTS == True:
+    make_api_calls = True
+elif LIMIT_COSTS == False:
+    if api_call_count_today + api_get_limit < API_DAILY_LIMIT:
+        make_api_calls = True
 
-#     if api_call_count_today + api_get_limit > API_DAILY_LIMIT:
-#         if not utils.user_choice_api_call:
-#             break
+    # If API_DAILY_LIMIT would be exceeded: ask user if they want to continue regardless
+    else:
+        accept_charges = utils.user_choice_api_call(
+            performed_calls=api_call_count_today,
+            limit=API_DAILY_LIMIT,
+            )
+        if accept_charges == True:
+            make_api_calls = True
+        elif accept_charges == False:
+            print("Stopping API calls to avoid charges.")
+            make_api_calls = False
 
-#     # End fetching when api_get_limit is reached
-#     if api_calls_made >= api_get_limit:
-#         break
+# Perform API calls if not forbidden
+if make_api_calls == True:
+    utils.make_ipa_call(
+        api_get_limit, 
+        api_params={
+            "lat": LAT,
+            "lon": LON,
+            "date": next_date,
+            "API key": API_KEY,
+            },
+        )
 
-#     stored_date = row[0]
-#     print(f"Requesting data for {stored_date}...")
 
-#     # API Call
-#     api_url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={stored_date}&appid={API_KEY}"
-#     response = requests.get(api_url)
+# # API Call
+# api_url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={stored_date}&appid={API_KEY}"
+# response = requests.get(api_url)
 
-#     if response.status_code == 200:
-#         response_json = response.json()  # Parse JSON
-#         print(response_json)
-#         response_dict = dict(response_json)
+# if response.status_code == 200:
+#     response_json = response.json()  # Parse JSON
+#     print(response_json)
+#     response_dict = dict(response_json)
 
-#         print(f"response type {type(response_dict)}")
-#         print(response_dict)
-#         # Caclulate temp median for row; without temp min & max, and one with min & max
-#         temp_values_no_minmax = [
+#     print(f"response type {type(response_dict)}")
+#     print(response_dict)
+#     # Caclulate temp median for row; without temp min & max, and one with min & max
+#     temp_values_no_minmax = [
+#         response_dict["temperature"]["morning"],
+#         response_dict["temperature"]["afternoon"],
+#         response_dict["temperature"]["evening"],
+#         response_dict["temperature"]["night"],
+#         ]
+#     temp_median_no_minmax = median(temp_values_no_minmax)
+
+#     temp_values = [
+#         response_dict["temperature"]["min"],
+#         response_dict["temperature"]["max"],
+#         ]
+#     temp_values += temp_values_no_minmax
+#     temp_median = median(temp_values)
+
+#     response_dict["temperature"]["median__temp_no_min_max_k"] = temp_median_no_minmax
+#     response_dict["temperature"]["median_temp"] = temp_median
+
+#     # Get current date to store as retrieval date
+#     retrieval_date = datetime.today().strftime('%Y-%m-%d')
+
+
+#     # Update database with API data
+#     columns_weather_data = [
+#         "min_temp",
+#         "max_temp",
+#         "median_temp_no_minmax",
+#         "median_temp",
+#         "morning_temp",
+#         "afternoon_temp",
+#         "evening_temp",
+#         "night_temp",
+#         "humidity",
+#         "precipitation",
+#         "wind_speed",
+#         "wind_direction",
+#         "retrieval_date",
+#         ]
+
+
+#     # Build the SQL query string dynamically
+#     columns_weather_string = ", ".join(f"{col} = ?" for col in columns_weather_data)
+
+#     sql_update_query = f"""
+#                         UPDATE {table_name_weather}
+#                             SET {columns_weather_string}
+#                             WHERE date = ?
+#                         """
+
+#     # Prepare data (list of tuples) for sqlite3 executemany
+#     data_to_update = [
+#         (
+#             response_dict["temperature"]["min"],
+#             response_dict["temperature"]["max"],
+#             temp_median_no_minmax,
+#             temp_median,
 #             response_dict["temperature"]["morning"],
 #             response_dict["temperature"]["afternoon"],
 #             response_dict["temperature"]["evening"],
 #             response_dict["temperature"]["night"],
-#             ]
-#         temp_median_no_minmax = median(temp_values_no_minmax)
+#             response_dict["humidity"]["afternoon"],
+#             response_dict["precipitation"]["total"],
+#             response_dict["wind"]["max"]["speed"],
+#             response_dict["wind"]["max"]["direction"],
+#             retrieval_date,
+#             stored_date,  # `WHERE date = ?` goes last
+#             )
+#         for value in response_dict
+#     ]
 
-#         temp_values = [
-#             response_dict["temperature"]["min"],
-#             response_dict["temperature"]["max"],
-#             ]
-#         temp_values += temp_values_no_minmax
-#         temp_median = median(temp_values)
-
-#         response_dict["temperature"]["median__temp_no_min_max_k"] = temp_median_no_minmax
-#         response_dict["temperature"]["median_temp"] = temp_median
-
-#         # Get current date to store as retrieval date
-#         retrieval_date = datetime.today().strftime('%Y-%m-%d')
-
-
-#         # Update database with API data
-#         columns_weather_data = [
-#            "min_temp",
-#            "max_temp",
-#            "median_temp_no_minmax",
-#            "median_temp",
-#            "morning_temp",
-#            "afternoon_temp",
-#            "evening_temp",
-#            "night_temp",
-#            "humidity",
-#            "precipitation",
-#            "wind_speed",
-#            "wind_direction",
-#            "retrieval_date",
-#            ]
-
-
-#         # Build the SQL query string dynamically
-#         columns_weather_string = ", ".join(f"{col} = ?" for col in columns_weather_data)
-
-#         sql_update_query = f"""
-#                             UPDATE {table_name_weather}
-#                                 SET {columns_weather_string}
-#                                 WHERE date = ?
-#                             """
-
-#         # Prepare data (list of tuples) for sqlite3 executemany
-#         data_to_update = [
-#             (
-#                 response_dict["temperature"]["min"],
-#                 response_dict["temperature"]["max"],
-#                 temp_median_no_minmax,
-#                 temp_median,
-#                 response_dict["temperature"]["morning"],
-#                 response_dict["temperature"]["afternoon"],
-#                 response_dict["temperature"]["evening"],
-#                 response_dict["temperature"]["night"],
-#                 response_dict["humidity"]["afternoon"],
-#                 response_dict["precipitation"]["total"],
-#                 response_dict["wind"]["max"]["speed"],
-#                 response_dict["wind"]["max"]["direction"],
-#                 retrieval_date,
-#                 stored_date,  # `WHERE date = ?` goes last
-#                 )
-#             for value in response_dict
-#         ]
-
-#         # Execute all updates at once
-#         cursor.executemany(sql_update_query, data_to_update)
-#         print(f"Updated data for: {stored_date}")
-#         print("- - - ")
-#         # Increment counter of api calls made in this run
-#         api_calls_made += 1
-#     else:
-#         print(f"API call failed for {stored_date}: {response.status_code}")
+#     # Execute all updates at once
+#     cursor.executemany(sql_update_query, data_to_update)
+#     print(f"Updated data for: {stored_date}")
+#     print("- - - ")
+#     # Increment counter of api calls made in this run
+#     api_calls_made += 1
+# else:
+#     print(f"API call failed for {stored_date}: {response.status_code}")
 # print("All weather data gathered. Waiting to commit do database")
 # # Commit changes to database
 # conn.commit()

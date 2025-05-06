@@ -418,8 +418,10 @@ def store_in_sql(
     conn.commit()
     conn.close()
 
-def user_choice_api_call():
+def user_choice_api_call(performed_calls:int, limit:int) -> bool:
     print("The next API request to OpenWeatherMap will exceed the free tier.")
+    print("You may try reducing the number of calls to be made.")
+    print(f"You have performed {performed_calls} / {limit} API calls today.")
     print("To continue with the request, press ENTER.")
     print("Press any other key to stop making API calls.")
     choice = input()
@@ -428,3 +430,10 @@ def user_choice_api_call():
     elif choice == "":
         return True
 
+def make_ipa_call(
+        calls_no: int,
+        api_params: dict,
+        url: str,
+        ):
+    for _ in range(calls_no):
+        print(_)
