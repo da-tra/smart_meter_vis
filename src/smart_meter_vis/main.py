@@ -118,16 +118,18 @@ for entry in smart_meter_data_dict.items():
 # Extend SQL database to receive weather data #
 ###############################################
 
-# Connect to SQL database and define a table for weather data
+# Connect to SQL database and define a table name for weather data
 
 path_db = f"{sql_folder}/{filename_db}"
 conn = sqlite3.connect(path_db)
 cursor = conn.cursor()
 table_name_weather = "weather"
 
+
 # Define new columns with their respective types. These are defined by the API response
 # For JSON schema see API documentation: https://openweathermap.org/api/one-call-3#hist_agr_parameter
 columns_weather_data = {
+    "id": "INTEGER PRIMARY KEY",
     "temp_min": "REAL",
     "temp_max": "REAL",
     "temp_median_no_minmax": "REAL",
@@ -143,13 +145,12 @@ columns_weather_data = {
     "retrieval_date": "TEXT",
     }
 
-# Add new weather-related columns to the table (if they don't exist)
-
-utils.add_new_columns(
+# Create a table for weather data (if it doesn't exist yet)
+utils.create_sql_table(
     folder_db=sql_folder,
     name_db=filename_db,
     name_table=table_name_weather,
-    columns=columns_weather_data,
+    columns_name_type=columns_weather_data,
     )
 
 #################################
