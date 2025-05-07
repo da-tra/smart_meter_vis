@@ -1,3 +1,4 @@
+import requests
 import os
 from importlib.resources import files
 import csv
@@ -430,13 +431,12 @@ def user_choice_api_call(performed_calls:int, limit:int) -> bool:
     elif choice == "":
         return True
 
-def make_ipa_call(
-        calls_no: int,
+def api_get(
         api_params: dict,
         url: str,
         ):
-    for _ in range(calls_no):
-        print(_)
+    response = requests.get(url=url, params=api_params)
+    return response
 
 def sql_subtract_column_values(
         folder_db: str,

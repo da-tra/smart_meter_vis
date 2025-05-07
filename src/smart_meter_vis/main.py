@@ -174,12 +174,15 @@ API_DAILY_LIMIT = 1000
 
 # TODO remove this feature
 # Define the number of days for which data is requested
-api_get_limit = 9  # Change this number as needed
+API_GET_LIMIT = 9  # Change this number as needed
 
 # Turn off cost protection by setting limit_costs to False
 LIMIT_COSTS = True
 if LIMIT_COSTS:
-    assert api_get_limit <= API_DAILY_LIMIT  # noqa: S101
+    assert API_GET_LIMIT <= API_DAILY_LIMIT  # noqa: S101
+
+# A dictionary for collecting weather data obtained from API calls
+api_responses = {}
 
 
 # # TODO: make sure the API limit isn't exceeded
@@ -208,7 +211,7 @@ print(f"API call daily limit: {API_DAILY_LIMIT}")
 if LIMIT_COSTS == True:
     make_api_calls = True
 elif LIMIT_COSTS == False:
-    if api_call_count_today + api_get_limit < API_DAILY_LIMIT:
+    if api_call_count_today + API_GET_LIMIT < API_DAILY_LIMIT:
         make_api_calls = True
 
     # If API_DAILY_LIMIT would be exceeded: ask user if they want to continue regardless
@@ -236,30 +239,34 @@ missing_dates = utils.sql_subtract_column_values(
     name_db=filename_db,
     data=comparison_data,
     )
-# print(missing_dates)
+print(len(missing_dates))
 
 
-# # Perform API calls if not forbidden
-# if make_api_calls == True:
-#     utils.make_ipa_call(
-#         api_get_limit, 
-#         api_params={
-#             "lat": LAT,
-#             "lon": LON,
-#             "date": next_date,
-#             "API key": API_KEY,
-#             },
-#         )
+
+# Perform API calls if not forbidden
+if make_api_calls == True:
+    # Limit number of API calls to the amount set in API_GET_LIMIT
+    for _ in range(API_GET_LIMIT):
+        # The dates for which data is requested are defined in the list missing_dates
+        next_date = missing_dates[_]
+        response = utils.api_get(
+            url="https://api.openweathermap.org/data/3.0/onecall/day_summary",
+            api_params={
+                "lat": LAT,
+                "lon": LON,
+                "date": next_date,
+                "appid": API_KEY,
+                "units": "metric"
+                },
+            )
+        # print(f"response code: {response.status_code},\nurl = {response.url}")
+        if response.status_code == 200:
+            response_json = response.json()  # Parse JSON
+            print(response_json)
+            response_dict = dict(response_json)
+        print(response_dict)
 
 
-# # API Call
-# api_url = f"https://api.openweathermap.org/data/3.0/onecall/day_summary?lat={LAT}&lon={LON}&date={stored_date}&appid={API_KEY}"
-# response = requests.get(api_url)
-
-# if response.status_code == 200:
-#     response_json = response.json()  # Parse JSON
-#     print(response_json)
-#     response_dict = dict(response_json)
 
 #     print(f"response type {type(response_dict)}")
 #     print(response_dict)
