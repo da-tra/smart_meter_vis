@@ -52,7 +52,6 @@ filename_db = "vienna_weather_and_electricity_testwo.db"
 table_name_electricity = "electricity"
 # Define the column names and their types in a dictionary ("column": "TYPE")
 columns_usage = {
-    "id": "INTEGER PRIMARY KEY",
     "usage_date": "TEXT UNIQUE",
     "usage_kwh": "REAL",
     }
@@ -130,7 +129,6 @@ table_name_weather = "weather"
 # Define new columns with their respective types. These are defined by the API response
 # For JSON schema see API documentation: https://openweathermap.org/api/one-call-3#hist_agr_parameter
 columns_weather_data = {
-    "id": "INTEGER PRIMARY KEY",
     "weather_date": "TEXT",
     "temp_min": "REAL",
     "temp_max": "REAL",
@@ -183,12 +181,6 @@ if LIMIT_COSTS:
     assert API_GET_LIMIT <= API_DAILY_LIMIT  # noqa: S101
 
 
-# # TODO: make sure the API limit isn't exceeded
-# # TODO: for each date in the SQL table, update the table with 
-# # TODO: function sql_update_where, but first
-# # TODO: check that the column is NULL?
-
-
 api_calls_made = 0  # Track number of API calls
 
 api_call_count_today = utils.sql_count_value_in_column(
@@ -237,10 +229,10 @@ missing_dates = utils.sql_subtract_column_values(
     name_db=filename_db,
     data=comparison_data,
     )
-print(len(missing_dates))
+# print(missing_dates)
 
 # A dictionary for collecting raw JSON data
-api_responses = {}
+api_get_results_aggreg = {}
 
 
 # Perform API calls if not forbidden
@@ -292,73 +284,46 @@ if make_api_calls == True:
             # Get current date to store as retrieval date
             retrieval_date = datetime.today().strftime('%Y-%m-%d')
 
+            # Add fetched data to dict for all data fetched in this loop
+            api_get_results_aggreg[next_date] = response_dict
 
-    # Update database with new weather data
-    columns_weather_data = [
-        "min_temp",
-        "max_temp",
-        "median_temp_no_minmax",
-        "median_temp",
-        "morning_temp",
-        "afternoon_temp",
-        "evening_temp",
-        "night_temp",
-        "humidity",
-        "precipitation",
-        "wind_speed",
-        "wind_direction",
-        "retrieval_date",
-        ]
+        # Increment counter of api calls made in this run
+        api_calls_made += 1
 
-
-    # Build the SQL query string dynamically
-    columns_weather_string = ", ".join(f"{col} = ?" for col in columns_weather_data)
-
-    sql_update_query = f"""
-                        UPDATE {table_name_weather}
-                            SET {columns_weather_string}
-                            WHERE date = ?
-                        """
-
-    # Prepare data (list of tuples) for sqlite3 executemany
-    data_to_update = [
-        (
-            response_dict["temperature"]["min"],
-            response_dict["temperature"]["max"],
-            temp_median_no_minmax,
-            temp_median,
-            response_dict["temperature"]["morning"],
-            response_dict["temperature"]["afternoon"],
-            response_dict["temperature"]["evening"],
-            response_dict["temperature"]["night"],
-            response_dict["humidity"]["afternoon"],
-            response_dict["precipitation"]["total"],
-            response_dict["wind"]["max"]["speed"],
-            response_dict["wind"]["max"]["direction"],
-            retrieval_date,
-            stored_date,  # `WHERE date = ?` goes last
-            )
-        for value in response_dict
-    ]
-
-    # Execute all updates at once
-    cursor.executemany(sql_update_query, data_to_update)
-    print(f"Updated data for: {stored_date}")
-    print("- - - ")
-    # Increment counter of api calls made in this run
-    api_calls_made += 1
-else:
-    print(f"API call failed for {stored_date}: {response.status_code}")
-print("All weather data gathered. Waiting to commit do database")
-# Commit changes to database
-conn.commit()
-print("Changes committed to SQL database")
-# Close connection
-conn.close()
 
 ###################################
 # Store weather data in SQL table #
 ###################################
+
+# Insert weather data into weather table
+# Prepare data (list of tuples) for sqlite3 executemany
+data_to_update = [
+    (
+        key,
+        value["temperature"]["min"],
+        value["temperature"]["max"],
+        temp_median_no_minmax,
+        temp_median,
+        value["temperature"]["morning"],
+        value["temperature"]["afternoon"],
+        value["temperature"]["evening"],
+        value["temperature"]["night"],
+        value["humidity"]["afternoon"],
+        value["precipitation"]["total"],
+        value["wind"]["max"]["speed"],
+        value["wind"]["max"]["direction"],
+        retrieval_date,
+        )
+    for key, value in api_get_results_aggreg.items()
+]
+utils.sql_insert_multiple_json(
+    folder_db=sql_folder,
+    name_db=filename_db,
+    name_table=table_name_weather,
+    column_names=columns_weather_data,
+    data_to_insert=data_to_update,
+    )
+
 
 # # TODO calculate correlation between weather and usage
 # # TODO plot (or show?) only the data with relevant correlation

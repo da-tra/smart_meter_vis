@@ -280,6 +280,8 @@ def sql_count_value_in_column(
 def create_sql_table(folder_db: str, name_db: str, name_table: str, columns_name_type: dict[str, str]) -> None:
     """Connect to SQLite3 file and CREATE TABLE IF NOT EXISTS.
 
+    Adds an ID as primary key.
+
     Args:
         folder_db (str): The path to the directory where the database file will be located.
         name_db (str): The name of the SQLite database file.
@@ -292,10 +294,11 @@ def create_sql_table(folder_db: str, name_db: str, name_table: str, columns_name
     cursor = conn.cursor()
 
     # Construct the SQL query for creating a table if it doesn't exist
-    columns_block = build_columns_string(columns_name_type)
+    columns_block = build_columns_string(columns_dict=columns_name_type)
 
     query = f"""
             CREATE TABLE IF NOT EXISTS {name_table} (
+                id INTEGER PRIMARY KEY,
                 {columns_block}
             )
             """
@@ -370,6 +373,34 @@ def sql_insert_row(
     cursor.execute(query, values) 
     conn.commit()
 
+def sql_insert_multiple_json(
+        folder_db: str,
+        name_db: str,
+        name_table: str,
+        column_names: list,
+        data_to_insert: list,
+        ) -> None:
+    """Insert data into SQL table via executemany().
+    """
+    path_db = f"{folder_db}/{name_db}"
+    conn = sqlite3.connect(path_db)
+    cursor = conn.cursor()
+
+    # Assume all inner dicts have the same keys
+    column_names_str = ", ".join(column_names) # Join column names
+    placeholder_str = ", ".join(["?" for _ in column_names]) # Create placeholdes for query
+
+    # Read values from inner dict (= data for database)
+    # values = [tuple(row[col] for col in column_names) for row in data.values()]
+    values = data_to_insert
+
+    query = f"INSERT INTO {name_table} ({column_names_str}) VALUES ({placeholder_str})"
+    
+    cursor.executemany(query, values)
+    conn.commit()
+
+
+
 
 
 
@@ -437,7 +468,10 @@ def api_get(
         url: str,
         ):
     response = requests.get(url=url, params=api_params)
-    return response
+    if response.status_code == 200:
+        return response
+    else:
+        print(f"API call failed for {api_params}- response code: {response.status_code}")    
 
 def sql_subtract_column_values(
         folder_db: str,
@@ -499,7 +533,7 @@ def add_to_json_file_if_is_not_key(filepath, key, value):
     else:
         data = {}  # File does not exist
     
-    if not data[key]:
+    if key not in data:
         data[key] = value  # Add the new key-value pair
     else:
         print(f"key {key} already in json file")
