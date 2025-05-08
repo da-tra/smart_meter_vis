@@ -3,6 +3,7 @@
 The visualisation includes graphs for weather data for Vienna.
 """
 import csv
+import json
 import sqlite3
 from datetime import datetime
 from statistics import median
@@ -181,9 +182,6 @@ LIMIT_COSTS = True
 if LIMIT_COSTS:
     assert API_GET_LIMIT <= API_DAILY_LIMIT  # noqa: S101
 
-# A dictionary for collecting weather data obtained from API calls
-api_responses = {}
-
 
 # # TODO: make sure the API limit isn't exceeded
 # # TODO: for each date in the SQL table, update the table with 
@@ -208,9 +206,9 @@ print(f"API calls made today: {api_call_count_today + api_calls_made}")
 print(f"API call daily limit: {API_DAILY_LIMIT}")
 
 # Check if making API calls is allowed
-if LIMIT_COSTS == True:
+if LIMIT_COSTS == False:
     make_api_calls = True
-elif LIMIT_COSTS == False:
+elif LIMIT_COSTS == True:
     if api_call_count_today + API_GET_LIMIT < API_DAILY_LIMIT:
         make_api_calls = True
 
@@ -241,6 +239,8 @@ missing_dates = utils.sql_subtract_column_values(
     )
 print(len(missing_dates))
 
+# A dictionary for collecting raw JSON data
+api_responses = {}
 
 
 # Perform API calls if not forbidden
@@ -259,102 +259,102 @@ if make_api_calls == True:
                 "units": "metric"
                 },
             )
-        # print(f"response code: {response.status_code},\nurl = {response.url}")
+        
         if response.status_code == 200:
             response_json = response.json()  # Parse JSON
-            print(response_json)
             response_dict = dict(response_json)
-        print(response_dict)
+
+            # Backup new JSON responses to file            
+            utils.add_to_json_file_if_is_not_key(
+                filepath="api_responses.json",
+                key=next_date,
+                value=response_json)
+
+            # Caclulate temp median for row; without temp min & max, and one with min & max
+            temp_values_no_minmax = [
+                response_dict["temperature"]["morning"],
+                response_dict["temperature"]["afternoon"],
+                response_dict["temperature"]["evening"],
+                response_dict["temperature"]["night"],
+                ]
+            temp_median_no_minmax = median(temp_values_no_minmax)
+
+            temp_values = [
+                response_dict["temperature"]["min"],
+                response_dict["temperature"]["max"],
+                ]
+            temp_values += temp_values_no_minmax
+            temp_median = median(temp_values)
+
+            response_dict["temperature"]["median__temp_no_min_max"] = temp_median_no_minmax
+            response_dict["temperature"]["median_temp"] = temp_median
+
+            # Get current date to store as retrieval date
+            retrieval_date = datetime.today().strftime('%Y-%m-%d')
 
 
-
-#     print(f"response type {type(response_dict)}")
-#     print(response_dict)
-#     # Caclulate temp median for row; without temp min & max, and one with min & max
-#     temp_values_no_minmax = [
-#         response_dict["temperature"]["morning"],
-#         response_dict["temperature"]["afternoon"],
-#         response_dict["temperature"]["evening"],
-#         response_dict["temperature"]["night"],
-#         ]
-#     temp_median_no_minmax = median(temp_values_no_minmax)
-
-#     temp_values = [
-#         response_dict["temperature"]["min"],
-#         response_dict["temperature"]["max"],
-#         ]
-#     temp_values += temp_values_no_minmax
-#     temp_median = median(temp_values)
-
-#     response_dict["temperature"]["median__temp_no_min_max_k"] = temp_median_no_minmax
-#     response_dict["temperature"]["median_temp"] = temp_median
-
-#     # Get current date to store as retrieval date
-#     retrieval_date = datetime.today().strftime('%Y-%m-%d')
+    # Update database with new weather data
+    columns_weather_data = [
+        "min_temp",
+        "max_temp",
+        "median_temp_no_minmax",
+        "median_temp",
+        "morning_temp",
+        "afternoon_temp",
+        "evening_temp",
+        "night_temp",
+        "humidity",
+        "precipitation",
+        "wind_speed",
+        "wind_direction",
+        "retrieval_date",
+        ]
 
 
-#     # Update database with API data
-#     columns_weather_data = [
-#         "min_temp",
-#         "max_temp",
-#         "median_temp_no_minmax",
-#         "median_temp",
-#         "morning_temp",
-#         "afternoon_temp",
-#         "evening_temp",
-#         "night_temp",
-#         "humidity",
-#         "precipitation",
-#         "wind_speed",
-#         "wind_direction",
-#         "retrieval_date",
-#         ]
+    # Build the SQL query string dynamically
+    columns_weather_string = ", ".join(f"{col} = ?" for col in columns_weather_data)
 
+    sql_update_query = f"""
+                        UPDATE {table_name_weather}
+                            SET {columns_weather_string}
+                            WHERE date = ?
+                        """
 
-#     # Build the SQL query string dynamically
-#     columns_weather_string = ", ".join(f"{col} = ?" for col in columns_weather_data)
+    # Prepare data (list of tuples) for sqlite3 executemany
+    data_to_update = [
+        (
+            response_dict["temperature"]["min"],
+            response_dict["temperature"]["max"],
+            temp_median_no_minmax,
+            temp_median,
+            response_dict["temperature"]["morning"],
+            response_dict["temperature"]["afternoon"],
+            response_dict["temperature"]["evening"],
+            response_dict["temperature"]["night"],
+            response_dict["humidity"]["afternoon"],
+            response_dict["precipitation"]["total"],
+            response_dict["wind"]["max"]["speed"],
+            response_dict["wind"]["max"]["direction"],
+            retrieval_date,
+            stored_date,  # `WHERE date = ?` goes last
+            )
+        for value in response_dict
+    ]
 
-#     sql_update_query = f"""
-#                         UPDATE {table_name_weather}
-#                             SET {columns_weather_string}
-#                             WHERE date = ?
-#                         """
-
-#     # Prepare data (list of tuples) for sqlite3 executemany
-#     data_to_update = [
-#         (
-#             response_dict["temperature"]["min"],
-#             response_dict["temperature"]["max"],
-#             temp_median_no_minmax,
-#             temp_median,
-#             response_dict["temperature"]["morning"],
-#             response_dict["temperature"]["afternoon"],
-#             response_dict["temperature"]["evening"],
-#             response_dict["temperature"]["night"],
-#             response_dict["humidity"]["afternoon"],
-#             response_dict["precipitation"]["total"],
-#             response_dict["wind"]["max"]["speed"],
-#             response_dict["wind"]["max"]["direction"],
-#             retrieval_date,
-#             stored_date,  # `WHERE date = ?` goes last
-#             )
-#         for value in response_dict
-#     ]
-
-#     # Execute all updates at once
-#     cursor.executemany(sql_update_query, data_to_update)
-#     print(f"Updated data for: {stored_date}")
-#     print("- - - ")
-#     # Increment counter of api calls made in this run
-#     api_calls_made += 1
-# else:
-#     print(f"API call failed for {stored_date}: {response.status_code}")
-# print("All weather data gathered. Waiting to commit do database")
-# # Commit changes to database
-# conn.commit()
-# print("Changes committed to SQL database")
-# # Close connection
-# conn.close()
+    # Execute all updates at once
+    cursor.executemany(sql_update_query, data_to_update)
+    print(f"Updated data for: {stored_date}")
+    print("- - - ")
+    # Increment counter of api calls made in this run
+    api_calls_made += 1
+else:
+    print(f"API call failed for {stored_date}: {response.status_code}")
+print("All weather data gathered. Waiting to commit do database")
+# Commit changes to database
+conn.commit()
+print("Changes committed to SQL database")
+# Close connection
+conn.close()
 
 ###################################
 # Store weather data in SQL table #
@@ -449,7 +449,7 @@ if make_api_calls == True:
 # fig.update_layout(
 #     title="Electricity Usage vs. Weather Conditions",
 #     xaxis_title="Date",
-#     yaxis=dict(title="Temperature (K)", side="left"),  # Keep label
+#     yaxis=dict(title="Temperature (C)", side="left"),  # Keep label
 #     yaxis2=dict(title="Electricity Usage (kWh)", overlaying="y", side="right"),  # Keep label
 #     yaxis3=dict(overlaying="y", side="left", showticklabels=False),  # Hide label
 #     yaxis4=dict(overlaying="y", side="right", showticklabels=False),  # Hide label

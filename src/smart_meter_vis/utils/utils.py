@@ -1,3 +1,4 @@
+import json
 import requests
 import os
 from importlib.resources import files
@@ -486,3 +487,22 @@ def sql_subtract_column_values(
 
         conn.close()
         return results
+
+def add_to_json_file_if_is_not_key(filepath, key, value):
+    data = {}
+    if os.path.exists(filepath):
+        with open(filepath, 'r') as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}  # File is empty or invalid
+    else:
+        data = {}  # File does not exist
+    
+    if not data[key]:
+        data[key] = value  # Add the new key-value pair
+    else:
+        print(f"key {key} already in json file")
+
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=2)
