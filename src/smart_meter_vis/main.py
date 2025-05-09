@@ -5,6 +5,7 @@ The visualisation includes graphs for weather data for Vienna.
 import csv
 import json
 import sqlite3
+import pandas as pd
 from datetime import datetime
 from statistics import median
 from pprint import pprint
@@ -33,7 +34,7 @@ LAT, LON = 48.2083537, 16.3725042
 API_DAILY_LIMIT = 1000
 
 # Define the number of days for which data is requested
-API_GET_LIMIT = 50  # Change this number as needed
+API_GET_LIMIT = 1  # Change this number as needed
 
 # Turn off cost protection by setting limit_costs to False
 LIMIT_COSTS = True
@@ -330,6 +331,14 @@ utils.sql_insert_multiple_from_json(
 #########################
 # Calculate correlation #
 #########################
+
+query_usage = f"SELECT * FROM {table_name_electricity}"
+query_weather = f"SELECT * FROM {table_name_weather}"
+path_db = f"{sql_folder}/{filename_db}"
+conn = sqlite3.connect(path_db)
+
+df_usage = pd.read_sql_query(sql=query_usage, con=conn, parse_dates="usage_date")
+df_weather = pd.read_sql_query(sql=query_weather, con=conn, parse_dates="weather_date")
 
 
 # # TODO calculate correlation between weather and usage
