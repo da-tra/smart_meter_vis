@@ -15,6 +15,32 @@ from importlib.resources import files
 import os
 from smart_meter_vis.utils import utils
 
+#################
+#  Definitions  #
+#################
+
+#  Constants for API call to get weather data 
+
+# Get API key for weather app.
+# The API key is to be stored at top level, i.e. smarter_meter_vis/api_key.txt
+with open("api_key.txt", "r") as f:  # noqa: PTH123
+    API_KEY = f.read().strip()
+
+# Set longitude and latitude to Vienna, AT
+LAT, LON = 48.2083537, 16.3725042
+
+# Limit number API calls per day to limit API costs
+API_DAILY_LIMIT = 1000
+
+# Define the number of days for which data is requested
+API_GET_LIMIT = 50  # Change this number as needed
+
+# Turn off cost protection by setting limit_costs to False
+LIMIT_COSTS = True
+
+## Failsafe for limitting costs:
+# if LIMIT_COSTS:
+#     assert API_GET_LIMIT <= API_DAILY_LIMIT  # noqa: S101
 
 ############################
 # Read CSV with usage data #
@@ -157,30 +183,6 @@ utils.create_sql_table(
 # Retrieve weather data via API #
 #################################
 
-
-##### Parameters for API call to get weather data #####
-
-# Get API key for weather app.
-# The API key is to be stored at top level, i.e. smarter_meter_vis/api_key.txt
-with open("api_key.txt", "r") as f:  # noqa: PTH123
-    API_KEY = f.read().strip()
-
-# Set longitude and latitude to Vienna, AT
-LAT, LON = 48.2083537, 16.3725042
-
-# Limit number API calls per day to limit API costs
-API_DAILY_LIMIT = 1000
-
-# TODO remove this feature
-# Define the number of days for which data is requested
-API_GET_LIMIT = 9  # Change this number as needed
-
-# Turn off cost protection by setting limit_costs to False
-LIMIT_COSTS = True
-if LIMIT_COSTS:
-    assert API_GET_LIMIT <= API_DAILY_LIMIT  # noqa: S101
-
-
 api_calls_made = 0  # Track number of API calls
 
 api_call_count_today = utils.sql_count_value_in_column(
@@ -191,28 +193,23 @@ api_call_count_today = utils.sql_count_value_in_column(
     column_name="retrieval_date"
     )
 
-# for row in rows:
-print(f"API calls made in this run: {api_calls_made}")
-print(f"API calls made today: {api_call_count_today + api_calls_made}")
 
-print(f"API call daily limit: {API_DAILY_LIMIT}")
-
-# Check if making API calls is allowed
-if LIMIT_COSTS == False:
+# Check if making API calls is allowed (or if it would exceed limits set by user)
+if LIMIT_COSTS == False: # don"t limit costs
     make_api_calls = True
-elif LIMIT_COSTS == True:
-    if api_call_count_today + API_GET_LIMIT < API_DAILY_LIMIT:
+elif LIMIT_COSTS == True: # Limit costs
+    if api_call_count_today + API_GET_LIMIT < API_DAILY_LIMIT: # Set number of calls is fine
         make_api_calls = True
 
     # If API_DAILY_LIMIT would be exceeded: ask user if they want to continue regardless
-    else:
+    else: # Set number of calls is fine
         accept_charges = utils.user_choice_api_call(
             performed_calls=api_call_count_today,
             limit=API_DAILY_LIMIT,
             )
-        if accept_charges == True:
+        if accept_charges == True: # User has overridden the cost limitation
             make_api_calls = True
-        elif accept_charges == False:
+        elif accept_charges == False: # User respects cost limitation
             print("Stopping API calls to avoid charges.")
             make_api_calls = False
 
@@ -238,9 +235,15 @@ api_get_results_aggreg = {}
 # Perform API calls if not forbidden
 if make_api_calls == True:
     # Limit number of API calls to the amount set in API_GET_LIMIT
-    for _ in range(API_GET_LIMIT):
+    for _ in range(API_GET_LIMIT - 1):
         # The dates for which data is requested are defined in the list missing_dates
         next_date = missing_dates[_]
+
+        print(f"API calls made in this run: {api_calls_made}")
+        print(f"API calls made today: {api_call_count_today + api_calls_made}")
+        print(f"API call daily limit: {API_DAILY_LIMIT}")
+        print(f"Fetching data via api for {next_date}")
+
         response = utils.api_get(
             url="https://api.openweathermap.org/data/3.0/onecall/day_summary",
             api_params={
@@ -296,7 +299,7 @@ if make_api_calls == True:
 ###################################
 
 # Insert weather data into weather table
-# Prepare data (list of tuples) for sqlite3 executemany
+# Prepare data (list of tuples) for SQL executemany in functin sql_insert_mulitple_from_json
 data_to_update = [
     (
         key,
@@ -316,13 +319,17 @@ data_to_update = [
         )
     for key, value in api_get_results_aggreg.items()
 ]
-utils.sql_insert_multiple_json(
+utils.sql_insert_multiple_from_json(
     folder_db=sql_folder,
     name_db=filename_db,
     name_table=table_name_weather,
     column_names=columns_weather_data,
     data_to_insert=data_to_update,
     )
+
+#########################
+# Calculate correlation #
+#########################
 
 
 # # TODO calculate correlation between weather and usage
@@ -339,13 +346,13 @@ utils.sql_insert_multiple_json(
 
 # # Define and fetch data for visualising from the SQL table
 # columns = ["date",
-#            "min_temp",
-#            "max_temp",
-#            "median_temp",
-#            "morning_temp",
-#            "afternoon_temp",
-#            "evening_temp",
-#            "night_temp",
+#            "temp_min",
+#            "temp_max",
+#            "temp_median",
+#            "temp_morning",
+#            "temp_afternoon",
+#            "temp_evening",
+#            "temp_night",
 #            "humidity",
 #            "precipitation",
 #            "wind_speed",

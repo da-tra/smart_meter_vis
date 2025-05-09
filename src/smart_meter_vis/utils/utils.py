@@ -1,3 +1,4 @@
+import pandas as pd
 import json
 import requests
 import os
@@ -373,7 +374,7 @@ def sql_insert_row(
     cursor.execute(query, values) 
     conn.commit()
 
-def sql_insert_multiple_json(
+def sql_insert_multiple_from_json(
         folder_db: str,
         name_db: str,
         name_table: str,
@@ -455,10 +456,10 @@ def user_choice_api_call(performed_calls:int, limit:int) -> bool:
     print("The next API request to OpenWeatherMap will exceed the free tier.")
     print("You may try reducing the number of calls to be made.")
     print(f"You have performed {performed_calls} / {limit} API calls today.")
-    print("To continue with the request, press ENTER.")
-    print("Press any other key to stop making API calls.")
-    choice = input()
-    if choice != "":
+    print("To continue with the request, confirm with Y and press ENTER.")
+    print("Press any other key (and ENTER) to stop making API calls.")
+    choice = input().lower()
+    if choice != "y":
         return False
     elif choice == "":
         return True
