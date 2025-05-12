@@ -374,7 +374,8 @@ def sql_insert_row(
     cursor.execute(query, values) 
     conn.commit()
 
-def sql_insert_multiple_from_json(
+# TODO: fix this method, it'a mess! let it take a json file!
+def sql_insert_multiple_from_json_as_list(
         folder_db: str,
         name_db: str,
         name_table: str,
@@ -399,10 +400,6 @@ def sql_insert_multiple_from_json(
     
     cursor.executemany(query, values)
     conn.commit()
-
-
-
-
 
 
 def store_in_sql(

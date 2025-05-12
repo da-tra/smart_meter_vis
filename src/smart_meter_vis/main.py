@@ -34,7 +34,8 @@ LAT, LON = 48.2083537, 16.3725042
 API_DAILY_LIMIT = 1000
 
 # Define the number of days for which data is requested
-API_GET_LIMIT = 1  # Change this number as needed
+API_GET_LIMIT = 0
+  # Change this number as needed
 
 # Turn off cost protection by setting limit_costs to False
 LIMIT_COSTS = True
@@ -232,64 +233,66 @@ missing_dates = utils.sql_subtract_column_values(
 # A dictionary for collecting raw JSON data
 api_get_results_aggreg = {}
 
-
-# Perform API calls if not forbidden
+# TODO: fix problem with median: sql table show same value vor all rows of a call series
+# Perform API calls if not forbidden. NUmber of API calls limitted to API_GET_LIMIT
 if make_api_calls == True:
-    # Limit number of API calls to the amount set in API_GET_LIMIT
-    for _ in range(API_GET_LIMIT - 1):
-        # The dates for which data is requested are defined in the list missing_dates
-        next_date = missing_dates[_]
+    if API_GET_LIMIT > len(missing_dates): # Avoid index error
+        print("The number of planned API calls exceeds the number of dates in usage data.")
+    else:
+        for _ in range(API_GET_LIMIT):
+            # The dates for which data is requested are defined in the list missing_dates
+            next_date = missing_dates[_]
 
-        print(f"API calls made in this run: {api_calls_made}")
-        print(f"API calls made today: {api_call_count_today + api_calls_made}")
-        print(f"API call daily limit: {API_DAILY_LIMIT}")
-        print(f"Fetching data via api for {next_date}")
+            print(f"API calls made in this run: {api_calls_made}")
+            print(f"API calls made today: {api_call_count_today + api_calls_made}")
+            print(f"API call daily limit: {API_DAILY_LIMIT}")
+            print(f"Fetching data via api for {next_date}")
 
-        response = utils.api_get(
-            url="https://api.openweathermap.org/data/3.0/onecall/day_summary",
-            api_params={
-                "lat": LAT,
-                "lon": LON,
-                "date": next_date,
-                "appid": API_KEY,
-                "units": "metric"
-                },
-            )
-        
-        if response.status_code == 200:
-            response_json = response.json()  # Parse JSON
-            response_dict = dict(response_json)
+            response = utils.api_get(
+                url="https://api.openweathermap.org/data/3.0/onecall/day_summary",
+                api_params={
+                    "lat": LAT,
+                    "lon": LON,
+                    "date": next_date,
+                    "appid": API_KEY,
+                    "units": "metric"
+                    },
+                )
+            
+            if response.status_code == 200:
+                response_json = response.json()  # Parse JSON
+                response_dict = dict(response_json)
 
-            # Backup new JSON responses to file            
-            utils.add_to_json_file_if_is_not_key(
-                filepath="api_responses.json",
-                key=next_date,
-                value=response_json)
+                # Backup new JSON responses to file            
+                utils.add_to_json_file_if_is_not_key(
+                    filepath="api_responses.json",
+                    key=next_date,
+                    value=response_json)
 
-            # Caclulate temp median for row; without temp min & max, and one with min & max
-            temp_values_no_minmax = [
-                response_dict["temperature"]["morning"],
-                response_dict["temperature"]["afternoon"],
-                response_dict["temperature"]["evening"],
-                response_dict["temperature"]["night"],
-                ]
-            temp_median_no_minmax = median(temp_values_no_minmax)
+                # Caclulate temp median for row; without temp min & max, and one with min & max
+                temp_values_no_minmax = [
+                    response_dict["temperature"]["morning"],
+                    response_dict["temperature"]["afternoon"],
+                    response_dict["temperature"]["evening"],
+                    response_dict["temperature"]["night"],
+                    ]
+                temp_median_no_minmax = median(temp_values_no_minmax)
 
-            temp_values = [
-                response_dict["temperature"]["min"],
-                response_dict["temperature"]["max"],
-                ]
-            temp_values += temp_values_no_minmax
-            temp_median = median(temp_values)
+                temp_values = [
+                    response_dict["temperature"]["min"],
+                    response_dict["temperature"]["max"],
+                    ]
+                temp_values += temp_values_no_minmax
+                temp_median = median(temp_values)
 
-            response_dict["temperature"]["median__temp_no_min_max"] = temp_median_no_minmax
-            response_dict["temperature"]["median_temp"] = temp_median
+                response_dict["temperature"]["median_no_minmax"] = temp_median_no_minmax
+                response_dict["temperature"]["median"] = temp_median
 
-            # Get current date to store as retrieval date
-            retrieval_date = datetime.today().strftime('%Y-%m-%d')
+                # Get current date to store as retrieval date
+                retrieval_date = datetime.today().strftime('%Y-%m-%d')
 
-            # Add fetched data to dict for all data fetched in this loop
-            api_get_results_aggreg[next_date] = response_dict
+                # Add fetched data to dict for all data fetched in this loop
+                api_get_results_aggreg[next_date] = response_dict
 
         # Increment counter of api calls made in this run
         api_calls_made += 1
@@ -306,8 +309,8 @@ data_to_update = [
         key,
         value["temperature"]["min"],
         value["temperature"]["max"],
-        temp_median_no_minmax,
-        temp_median,
+        value["temperature"]["median_no_minmax"],
+        value["temperature"]["median"],
         value["temperature"]["morning"],
         value["temperature"]["afternoon"],
         value["temperature"]["evening"],
@@ -320,7 +323,7 @@ data_to_update = [
         )
     for key, value in api_get_results_aggreg.items()
 ]
-utils.sql_insert_multiple_from_json(
+utils.sql_insert_multiple_from_json_as_list(
     folder_db=sql_folder,
     name_db=filename_db,
     name_table=table_name_weather,
@@ -340,7 +343,36 @@ conn = sqlite3.connect(path_db)
 df_usage = pd.read_sql_query(sql=query_usage, con=conn, parse_dates="usage_date")
 df_weather = pd.read_sql_query(sql=query_weather, con=conn, parse_dates="weather_date")
 
+df_merged = pd.merge(left=df_usage, right=df_weather, how="outer", left_on="usage_date",right_on="weather_date")
+df_merged_puredata = df_merged.dropna()
 
+target = df_merged_puredata["usage_kwh"]
+feature_labels = [
+    "temp_min",
+    "temp_max",
+    # "temp_median_no_minmax",
+    # "temp_median",
+    "temp_morning",
+    "temp_afternoon",
+    "temp_evening",
+    "temp_night", 
+    "humidity",
+    "precipitation",
+    "wind_speed",
+    "wind_direction",
+    ]
+features = [feature for feature in feature_labels]
+correlations_dict = {}
+for feature in features:
+    correlation = target.corr(other=df_merged_puredata[feature])
+    correlations_dict[feature] = correlation
+# print(correlations_dict)
+df_correlations = pd.DataFrame(correlations_dict.items(), columns=["target", "correlation"])
+df_correlations["Abs correlation"] = df_correlations["correlation"].abs()
+print(df_correlations.sort_values("Abs correlation", ascending=False))
+# print(features)
+# print(df_merged_puredata)
+# df_merged_puredata.corr(method="pearson")
 # # TODO calculate correlation between weather and usage
 # # TODO plot (or show?) only the data with relevant correlation
 
