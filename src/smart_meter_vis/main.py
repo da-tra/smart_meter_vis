@@ -34,7 +34,7 @@ LAT, LON = 48.2083537, 16.3725042
 API_DAILY_LIMIT = 1000
 
 # Define the number of days for which data is requested
-API_GET_LIMIT = 0
+API_GET_LIMIT = 10
   # Change this number as needed
 
 # Turn off cost protection by setting limit_costs to False
@@ -304,7 +304,7 @@ if make_api_calls == True:
 
 # Insert weather data into weather table
 # Prepare data (list of tuples) for SQL executemany in functin sql_insert_mulitple_from_json
-data_to_update = [
+weather_data_insert = [
     (
         key,
         value["temperature"]["min"],
@@ -328,7 +328,7 @@ utils.sql_insert_multiple_from_json_as_list(
     name_db=filename_db,
     name_table=table_name_weather,
     column_names=columns_weather_data,
-    data_to_insert=data_to_update,
+    data_to_insert=weather_data_insert,
     )
 
 #########################
@@ -371,80 +371,39 @@ df_correlations = pd.DataFrame(correlations_dict.items(), columns=["target", "co
 df_correlations["Abs correlation"] = df_correlations["correlation"].abs()
 print(df_correlations.sort_values("Abs correlation", ascending=False))
 # print(features)
-# print(df_merged_puredata)
+print(df_merged_puredata)
 # df_merged_puredata.corr(method="pearson")
 # # TODO calculate correlation between weather and usage
 # # TODO plot (or show?) only the data with relevant correlation
 
-# # Plot usage data vs weather data
+#################
+# Plotting data #
+#################
 
-# # Connect to SQL database
-# filename_db = "power_usage_vs_weather.db"
-# filepath_db = f"./db/{filename_db}"
-# # Create database connection
-# conn = sqlite3.connect(filepath_db)
-# cursor = conn.cursor()
 
-# # Define and fetch data for visualising from the SQL table
-# columns = ["date",
-#            "temp_min",
-#            "temp_max",
-#            "temp_median",
-#            "temp_morning",
-#            "temp_afternoon",
-#            "temp_evening",
-#            "temp_night",
-#            "humidity",
-#            "precipitation",
-#            "wind_speed",
-#            "wind_direction",
-#            "usage_kwh",
-#            ]
+# Plot usage data vs weather data
 
-# columns_string = ", ".join(columns)
-# sql_data_for_vis = f"""SELECT {columns_string} FROM {table_name}
-#                         ORDER BY date"""
-# cursor.execute(sql_data_for_vis)
+df_merged_puredata
 
-# # Separate data into lists
-# dates = []
-# temps_min = []
-# temps_max = []
-# temps_median = []
-# temps_morning = []
-# temps_afternoon = []
-# temps_evening = []
-# temps_night = []
-# humidity = []
-# precipitation = []
-# wind_speed = []
-# wind_direction = []
-# usage = []
-
-# for row in cursor:
-#     (date, temp_min, temp_max, temp_median, temp_morning, temp_afternoon,
-#      temp_evening, temp_night, hum, precip, wind_spd, wind_dir, use) = row
-    
-#     dates.append(date)
-#     temps_min.append(temp_min)
-#     temps_max.append(temp_max)
-#     temps_median.append(temp_median)
-#     temps_morning.append(temp_morning)
-#     temps_afternoon.append(temp_afternoon)
-#     temps_evening.append(temp_evening)
-#     temps_night.append(temp_night)
-#     humidity.append(hum)
-#     precipitation.append(precip)
-#     wind_speed.append(wind_spd)
-#     wind_direction.append(wind_dir)
-#     usage.append(use)
-
-# # Close the connection
-# conn.close()
+# Define and fetch data for visualising from the dataframe table
+columns = ["usage_date",
+           "temp_min",
+           "temp_max",
+        #    "temp_median",
+           "temp_morning",
+           "temp_afternoon",
+           "temp_evening",
+           "temp_night",
+           "humidity",
+           "precipitation",
+           "wind_speed",
+           "wind_direction",
+           "usage_kwh",
+           ]
 
 # # Create Plotly figure
-# fig = go.Figure([
-#     go.Scatter(x=dates, y=temps_min, mode="lines", name="Min Temperature"),
+fig = go.Figure([
+    go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["temp_min"], mode="lines", name="Min Temperature"),
 #     go.Scatter(x=dates, y=temps_max, mode="lines", name="Max Temperature"),
 #     go.Scatter(x=dates, y=temps_median, mode="lines", name="Median Temp"),
 #     go.Scatter(x=dates, y=temps_morning, mode="lines", name="Morning Temperature"),
@@ -454,20 +413,20 @@ print(df_correlations.sort_values("Abs correlation", ascending=False))
 #     go.Scatter(x=dates, y=humidity, mode="lines", name="Humidity (%)", yaxis="y3"),
 #     go.Scatter(x=dates, y=precipitation, mode="lines", name="Precipitation (mm)", yaxis="y4"),
 #     go.Scatter(x=dates, y=wind_speed, mode="lines", name="Wind Speed (m/s)", yaxis="y5"),
-#     go.Scatter(x=dates, y=usage, mode="lines", name="Electricity Usage (kWh)", yaxis="y2"),
-#     go.Scatter(x=dates, y=usage, mode="lines", name="Usage (Inverted)", yaxis="y6")  # No need to multiply by -1
-# ])
+    go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["usage_kwh"], mode="lines", name="Electricity Usage (kWh)", yaxis="y2"),
+    go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["usage_kwh"], mode="lines", name="Electricity Usage (Inverted)", yaxis="y6")  # No need to multiply by -1
+])
 
 # # Configure multiple y-axes
-# fig.update_layout(
-#     title="Electricity Usage vs. Weather Conditions",
-#     xaxis_title="Date",
-#     yaxis=dict(title="Temperature (C)", side="left"),  # Keep label
-#     yaxis2=dict(title="Electricity Usage (kWh)", overlaying="y", side="right"),  # Keep label
+fig.update_layout(
+    title="Electricity Usage vs. Weather Conditions",
+    xaxis_title="Date",
+    yaxis=dict(title="Temperature (C)", side="left"),  # Keep label
+    yaxis2=dict(title="Electricity Usage (kWh)", overlaying="y", side="right"),  # Keep label
 #     yaxis3=dict(overlaying="y", side="left", showticklabels=False),  # Hide label
 #     yaxis4=dict(overlaying="y", side="right", showticklabels=False),  # Hide label
 #     yaxis5=dict(overlaying="y", side="right", showticklabels=False),  # Hide label
-#     yaxis6=dict(overlaying="y", side="right", showticklabels=False, autorange="reversed")  # Fix for inverted usage
-# )
+    yaxis6=dict(overlaying="y", side="right", showticklabels=False, autorange="reversed")  # Fix for inverted usage
+)
 # # Show the plot
-# fig.show()
+fig.show()
