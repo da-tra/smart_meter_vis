@@ -331,21 +331,25 @@ utils.sql_insert_multiple_from_json_as_list(
     data_to_insert=weather_data_insert,
     )
 
-#########################
-# Calculate correlation #
-#########################
+##################################
+# Calculate stronges correlation #
+##################################
 
+# Create SQLite3 connection to database
 query_usage = f"SELECT * FROM {table_name_electricity}"
 query_weather = f"SELECT * FROM {table_name_weather}"
 path_db = f"{sql_folder}/{filename_db}"
 conn = sqlite3.connect(path_db)
 
+# Create pandas dataframes for weather and usage data, respectively
 df_usage = pd.read_sql_query(sql=query_usage, con=conn, parse_dates="usage_date")
 df_weather = pd.read_sql_query(sql=query_weather, con=conn, parse_dates="weather_date")
 
+# Join data frames holding weather and usage data
 df_merged = pd.merge(left=df_usage, right=df_weather, how="outer", left_on="usage_date",right_on="weather_date")
-df_merged_puredata = df_merged.dropna()
+df_merged_puredata = df_merged.dropna() # Drop rows containing NULL values
 
+# Define a target and feature labels against which to calculate correlation 
 target = df_merged_puredata["usage_kwh"]
 feature_labels = [
     "temp_min",
@@ -361,27 +365,30 @@ feature_labels = [
     "wind_speed",
     "wind_direction",
     ]
-features = [feature for feature in feature_labels]
+
+# Store in dict: correlation of all weather features against electricity usage
 correlations_dict = {}
-for feature in features:
+for feature in feature_labels:
     correlation = target.corr(other=df_merged_puredata[feature])
     correlations_dict[feature] = correlation
 # print(correlations_dict)
+
+# Load dict with correlation values into pandas dataframe 
 df_correlations = pd.DataFrame(
     correlations_dict.items(), 
     columns=["target", "correlation"]
     )
-df_correlations["Abs correlation"] = df_correlations["correlation"].abs()
-print(df_correlations.sort_values("Abs correlation", ascending=False))
 
+# Determine strongest correlation by ordering by the (absolute) correlation efficients
+df_correlations["Abs correlation"] = df_correlations["correlation"].abs()
+# print(df_correlations.sort_values("Abs correlation", ascending=False))
 strongest_correlation = df_correlations.sort_values("Abs correlation", ascending=False).iloc[0]["target"]
 
 #################
 # Plotting data #
 #################
 
-
-# # TODO plot only the data with relevant correlation
+# Create a Plotly figure object
 fig = go.Figure([
     go.Scatter(
         x=df_merged_puredata["usage_date"],
@@ -398,7 +405,6 @@ fig = go.Figure([
         ),  
     ])
 
-# df_merged_puredata
 
 # TODO: define a dictionary holds data for all features. i.e. column name, x, y, mode, name, own y axis?, updlayout: title, title, side,showticklabels,
 # TODO: define a function that plots graphs for the features that appear in first n positions of correlation column.
