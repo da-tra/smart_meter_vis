@@ -367,55 +367,74 @@ for feature in features:
     correlation = target.corr(other=df_merged_puredata[feature])
     correlations_dict[feature] = correlation
 # print(correlations_dict)
-df_correlations = pd.DataFrame(correlations_dict.items(), columns=["target", "correlation"])
+df_correlations = pd.DataFrame(
+    correlations_dict.items(), 
+    columns=["target", "correlation"]
+    )
 df_correlations["Abs correlation"] = df_correlations["correlation"].abs()
 print(df_correlations.sort_values("Abs correlation", ascending=False))
-# print(features)
-print(df_merged_puredata)
-# df_merged_puredata.corr(method="pearson")
-# # TODO calculate correlation between weather and usage
-# # TODO plot (or show?) only the data with relevant correlation
+
+strongest_correlation = df_correlations.sort_values("Abs correlation", ascending=False).iloc[0]["target"]
 
 #################
 # Plotting data #
 #################
 
 
-# Plot usage data vs weather data
+# # TODO plot only the data with relevant correlation
+fig = go.Figure([
+    go.Scatter(
+        x=df_merged_puredata["usage_date"],
+        y=df_merged_puredata[strongest_correlation],
+        mode="lines",
+        name=strongest_correlation,
+        ),
+    go.Scatter(
+        x=df_merged_puredata["usage_date"],
+        y=df_merged_puredata["usage_kwh"],
+        mode="lines",
+        name="Electricity Usage (kWh)",
+        yaxis="y2",
+        ),  
+    ])
 
-df_merged_puredata
+# df_merged_puredata
+
+# TODO: define a dictionary holds data for all features. i.e. column name, x, y, mode, name, own y axis?, updlayout: title, title, side,showticklabels,
+# TODO: define a function that plots graphs for the features that appear in first n positions of correlation column.
+# TODO: make sure there is no double grid in background of graph
 
 # Define and fetch data for visualising from the dataframe table
-columns = ["usage_date",
-           "temp_min",
-           "temp_max",
-        #    "temp_median",
-           "temp_morning",
-           "temp_afternoon",
-           "temp_evening",
-           "temp_night",
-           "humidity",
-           "precipitation",
-           "wind_speed",
-           "wind_direction",
-           "usage_kwh",
-           ]
+# columns = ["usage_date",
+#            "temp_min",
+#            "temp_max",
+#         #    "temp_median",
+#            "temp_morning",
+#            "temp_afternoon",
+#            "temp_evening",
+#            "temp_night",
+#            "humidity",
+#            "precipitation",
+#            "wind_speed",
+#            "wind_direction",
+#            "usage_kwh",
+#            ]
 
-# # Create Plotly figure
-fig = go.Figure([
-    go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["temp_min"], mode="lines", name="Min Temperature"),
-#     go.Scatter(x=dates, y=temps_max, mode="lines", name="Max Temperature"),
-#     go.Scatter(x=dates, y=temps_median, mode="lines", name="Median Temp"),
-#     go.Scatter(x=dates, y=temps_morning, mode="lines", name="Morning Temperature"),
-#     go.Scatter(x=dates, y=temps_afternoon, mode="lines", name="Afternoon Temperature"),
-#     go.Scatter(x=dates, y=temps_evening, mode="lines", name="Evening Temperature"),
-#     go.Scatter(x=dates, y=temps_night, mode="lines", name="Night Temperature"),
-#     go.Scatter(x=dates, y=humidity, mode="lines", name="Humidity (%)", yaxis="y3"),
-#     go.Scatter(x=dates, y=precipitation, mode="lines", name="Precipitation (mm)", yaxis="y4"),
-#     go.Scatter(x=dates, y=wind_speed, mode="lines", name="Wind Speed (m/s)", yaxis="y5"),
-    go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["usage_kwh"], mode="lines", name="Electricity Usage (kWh)", yaxis="y2"),
-    go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["usage_kwh"], mode="lines", name="Electricity Usage (Inverted)", yaxis="y6")  # No need to multiply by -1
-])
+# # # Create Plotly figure
+# fig = go.Figure([
+#     go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["temp_min"], mode="lines", name="Min Temperature"),
+# #     go.Scatter(x=dates, y=temps_max, mode="lines", name="Max Temperature"),
+# #     go.Scatter(x=dates, y=temps_median, mode="lines", name="Median Temp"),
+# #     go.Scatter(x=dates, y=temps_morning, mode="lines", name="Morning Temperature"),
+# #     go.Scatter(x=dates, y=temps_afternoon, mode="lines", name="Afternoon Temperature"),
+# #     go.Scatter(x=dates, y=temps_evening, mode="lines", name="Evening Temperature"),
+# #     go.Scatter(x=dates, y=temps_night, mode="lines", name="Night Temperature"),
+# #     go.Scatter(x=dates, y=humidity, mode="lines", name="Humidity (%)", yaxis="y3"),
+# #     go.Scatter(x=dates, y=precipitation, mode="lines", name="Precipitation (mm)", yaxis="y4"),
+# #     go.Scatter(x=dates, y=wind_speed, mode="lines", name="Wind Speed (m/s)", yaxis="y5"),
+#     go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["usage_kwh"], mode="lines", name="Electricity Usage (kWh)", yaxis="y2"),
+#     go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["usage_kwh"], mode="lines", name="Electricity Usage (Inverted)", yaxis="y6")  # No need to multiply by -1
+# ])
 
 # # Configure multiple y-axes
 fig.update_layout(
@@ -426,7 +445,7 @@ fig.update_layout(
 #     yaxis3=dict(overlaying="y", side="left", showticklabels=False),  # Hide label
 #     yaxis4=dict(overlaying="y", side="right", showticklabels=False),  # Hide label
 #     yaxis5=dict(overlaying="y", side="right", showticklabels=False),  # Hide label
-    yaxis6=dict(overlaying="y", side="right", showticklabels=False, autorange="reversed")  # Fix for inverted usage
+    # yaxis6=dict(overlaying="y", side="right", showticklabels=False, autorange="reversed")  # Fix for inverted usage
 )
 # # Show the plot
 fig.show()
