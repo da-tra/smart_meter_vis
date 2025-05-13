@@ -404,48 +404,13 @@ fig = go.Figure([
 # TODO: define a function that plots graphs for the features that appear in first n positions of correlation column.
 # TODO: make sure there is no double grid in background of graph
 
-# Define and fetch data for visualising from the dataframe table
-# columns = ["usage_date",
-#            "temp_min",
-#            "temp_max",
-#         #    "temp_median",
-#            "temp_morning",
-#            "temp_afternoon",
-#            "temp_evening",
-#            "temp_night",
-#            "humidity",
-#            "precipitation",
-#            "wind_speed",
-#            "wind_direction",
-#            "usage_kwh",
-#            ]
-
-# # # Create Plotly figure
-# fig = go.Figure([
-#     go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["temp_min"], mode="lines", name="Min Temperature"),
-# #     go.Scatter(x=dates, y=temps_max, mode="lines", name="Max Temperature"),
-# #     go.Scatter(x=dates, y=temps_median, mode="lines", name="Median Temp"),
-# #     go.Scatter(x=dates, y=temps_morning, mode="lines", name="Morning Temperature"),
-# #     go.Scatter(x=dates, y=temps_afternoon, mode="lines", name="Afternoon Temperature"),
-# #     go.Scatter(x=dates, y=temps_evening, mode="lines", name="Evening Temperature"),
-# #     go.Scatter(x=dates, y=temps_night, mode="lines", name="Night Temperature"),
-# #     go.Scatter(x=dates, y=humidity, mode="lines", name="Humidity (%)", yaxis="y3"),
-# #     go.Scatter(x=dates, y=precipitation, mode="lines", name="Precipitation (mm)", yaxis="y4"),
-# #     go.Scatter(x=dates, y=wind_speed, mode="lines", name="Wind Speed (m/s)", yaxis="y5"),
-#     go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["usage_kwh"], mode="lines", name="Electricity Usage (kWh)", yaxis="y2"),
-#     go.Scatter(x=df_merged_puredata["usage_date"], y=df_merged_puredata["usage_kwh"], mode="lines", name="Electricity Usage (Inverted)", yaxis="y6")  # No need to multiply by -1
-# ])
-
 # # Configure multiple y-axes
 fig.update_layout(
     title="Electricity Usage vs. Weather Conditions",
     xaxis_title="Date",
     yaxis=dict(title="Temperature (C)", side="left"),  # Keep label
     yaxis2=dict(title="Electricity Usage (kWh)", overlaying="y", side="right"),  # Keep label
-#     yaxis3=dict(overlaying="y", side="left", showticklabels=False),  # Hide label
-#     yaxis4=dict(overlaying="y", side="right", showticklabels=False),  # Hide label
-#     yaxis5=dict(overlaying="y", side="right", showticklabels=False),  # Hide label
     # yaxis6=dict(overlaying="y", side="right", showticklabels=False, autorange="reversed")  # Fix for inverted usage
-)
-# # Show the plot
+    )
+# Show the plot
 fig.show()
